@@ -958,6 +958,7 @@ newGame();
   };
 
   let challengeDate = '', shareText = '', practiceMode = false, dailySnapshot = null;
+  let preparedPracticeResultBlob = null, practiceResultImagePromise = null;
   const againButton = document.getElementById('againBtn');
   const backToPuzzleButton = document.getElementById('backToPuzzleBtn');
   backToPuzzleButton.onclick = () => document.getElementById('modal').classList.remove('show');
@@ -991,6 +992,8 @@ newGame();
   shareStatus.insertAdjacentElement('afterend',fallback);
 
   newGame = function () {
+    preparedPracticeResultBlob = null;
+    practiceResultImagePromise = null;
     practiceMode = false;
     dailySnapshot = null;
     heading.innerHTML = dailyHeading;
@@ -1007,6 +1010,7 @@ newGame();
     redoStack = [];
     document.getElementById('modal').classList.remove('show');
     shareButton.hidden = false;
+    shareButton.disabled = false;
     returnDailyButton.hidden = true;
     againButton.textContent = 'PLAY RANDOM PUZZLE';
     shareStatus.textContent = '';
@@ -1026,6 +1030,8 @@ newGame();
   };
 
   const startPracticeGame = () => {
+    preparedPracticeResultBlob = null;
+    practiceResultImagePromise = null;
     clearProgress();
     practiceMode = true;
     heading.innerHTML = practiceHeading;
@@ -1059,9 +1065,29 @@ newGame();
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
         + `Time: ${elapsed}`;
       shareButton.hidden = false;
+      shareButton.disabled = true;
       returnDailyButton.hidden = false;
       againButton.textContent = 'PLAY ANOTHER RANDOM';
+      shareStatus.textContent = 'Preparing the solved-code image…';
+      const imagePromise = createPracticeSolutionImage();
+      practiceResultImagePromise = imagePromise;
+      imagePromise.then(blob => {
+        if (practiceResultImagePromise !== imagePromise) return null;
+        preparedPracticeResultBlob = blob;
+        shareButton.disabled = false;
+        shareStatus.textContent = 'Result image ready to share.';
+        return blob;
+      }).catch(() => {
+        if (practiceResultImagePromise !== imagePromise) return null;
+        preparedPracticeResultBlob = null;
+        shareButton.disabled = false;
+        shareStatus.textContent = 'Result text is ready; the solved-code image could not be prepared.';
+        return null;
+      });
     } else {
+      preparedPracticeResultBlob = null;
+      practiceResultImagePromise = null;
+      shareButton.disabled = false;
       shareText = `CodeTest2 — ${label} Daily\n${displayDate(challengeDate)}\n`
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
         + `Time: ${elapsed}`;
@@ -1089,6 +1115,7 @@ newGame();
     document.getElementById('elapsedTime').textContent = 'Time: ' + dailySnapshot.elapsed;
     shareText = dailySnapshot.resultText;
     shareButton.hidden = false;
+    shareButton.disabled = false;
     returnDailyButton.hidden = true;
     againButton.textContent = 'PLAY RANDOM PUZZLE';
   };
@@ -1126,8 +1153,8 @@ newGame();
 
     if (practiceMode) {
       try {
-        shareStatus.textContent = 'Preparing solved-code image…';
-        const blob = await createPracticeSolutionImage();
+        const blob = preparedPracticeResultBlob;
+        if (!blob) throw new Error('Solved-code image unavailable');
         const file = new File([blob],'CodeTest2-Basic-Random.png',{type:'image/png'});
         if (navigator.share && navigator.canShare?.({files:[file]})) {
           try {
