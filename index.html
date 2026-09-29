@@ -1156,7 +1156,8 @@ newGame();
         const blob = preparedPracticeResultBlob;
         if (!blob) throw new Error('Solved-code image unavailable');
         const file = new File([blob],'CodeTest2-Basic-Random.png',{type:'image/png'});
-        if (navigator.share && navigator.canShare?.({files:[file]})) {
+        const mobileFileSharing = navigator.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (mobileFileSharing && navigator.share && navigator.canShare?.({files:[file]})) {
           try {
             await navigator.share({title:`CodeTest2 — ${label} Random`,text:resultToShare,files:[file]});
             shareStatus.textContent = 'Result shared with the solved-code image.';
