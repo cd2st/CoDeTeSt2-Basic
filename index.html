@@ -261,6 +261,7 @@ body{height:100dvh;display:flex;align-items:center}
 .home-link{display:inline-block;text-decoration:none}
 .ip-notice{margin:20px 0 0;padding-top:14px;border-top:1px solid #34445e;color:#8193aa;font-size:10px;line-height:1.5;text-align:center}.ip-notice strong{color:#a9bad0}
 .title{display:flex;align-items:center;justify-content:center;gap:9px}.header-logo{display:block;width:auto;height:clamp(38px,6vh,56px);max-width:58%}.header-version{font-size:.72em;line-height:1.05;text-align:left;white-space:nowrap}.header-detail{display:block;font-size:.67em;color:#9fb1c8;margin-top:2px}@media(max-width:850px){.header-logo{height:clamp(22px,4.2vh,34px);max-width:48%}}
+.scripture{flex:0 0 auto;text-align:center;color:#b7c7db;font-size:clamp(8px,1.2vh,11px);line-height:1.25;letter-spacing:.015em}.scripture strong{color:#edf5ff}.scripture-top{margin:-2px 0 5px}.scripture-bottom{margin:5px 0 -1px}
 </style>
 </head>
 <body>
@@ -272,6 +273,7 @@ body{height:100dvh;display:flex;align-items:center}
     <button class="instructions-button" id="instructionsBtn" type="button">INSTRUCTIONS</button>
     <div class="top-spacer">SHAPE &nbsp; | &nbsp; COLOR &nbsp; | &nbsp; COMBO</div>
   </div>
+  <div class="scripture scripture-top"><strong>“Test everything; hold fast what is good.”</strong> <em>(1 Thessalonians 5:21)</em></div>
   <div class="main-layout">
     <div class="sheet">
       <div id="board"></div>
@@ -295,6 +297,7 @@ body{height:100dvh;display:flex;align-items:center}
       </aside>
     </div>
   </div>
+  <div class="scripture scripture-bottom"><strong>“For nothing is hidden that will not be disclosed.”</strong> <em>(Luke 8:17)</em></div>
 </div>
 
 <div class="instructions-modal" id="instructionsModal" role="dialog" aria-modal="true" aria-labelledby="instructionsTitle" hidden>
@@ -1092,15 +1095,58 @@ newGame();
   againButton.onclick = startPracticeGame;
   returnDailyButton.onclick = returnToDailyResult;
 
+  const drawPracticeShareShape = (ctx,piece,x,y,size) => {
+    ctx.save(); ctx.translate(x,y); ctx.fillStyle = piece.hex; ctx.beginPath();
+    if (piece.shape === 'circle') ctx.arc(0,0,size*.38,0,Math.PI*2);
+    else if (piece.shape === 'square') ctx.rect(-size*.36,-size*.36,size*.72,size*.72);
+    else if (piece.shape === 'diamond') { ctx.rotate(Math.PI/4); ctx.rect(-size*.29,-size*.29,size*.58,size*.58); }
+    else if (piece.shape === 'triangle') { ctx.moveTo(0,-size*.43); ctx.lineTo(size*.43,size*.35); ctx.lineTo(-size*.43,size*.35); ctx.closePath(); }
+    else if (piece.shape === 'star') {
+      for (let i=0;i<10;i++) { const r=i%2?size*.19:size*.43,a=-Math.PI/2+i*Math.PI/5,px=Math.cos(a)*r,py=Math.sin(a)*r; i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+      ctx.closePath();
+    }
+    ctx.fill(); ctx.restore();
+  };
+
+  const createPracticeSolutionImage = () => {
+    const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=340; const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#08111f'; ctx.fillRect(0,0,900,340); ctx.strokeStyle='#30445f'; ctx.lineWidth=4; ctx.strokeRect(18,18,864,304);
+    ctx.fillStyle='#eef4ff'; ctx.font='800 42px system-ui'; ctx.textAlign='center'; ctx.fillText(`CodeTest2 — ${label} Random`,450,78);
+    ctx.fillStyle='#a9bad0'; ctx.font='700 25px system-ui'; ctx.fillText('SOLVED CODE',450,126);
+    secret.forEach((piece,index)=>{const x=225+index*150,y=220;ctx.fillStyle='#16243a';ctx.fillRect(x-55,y-55,110,110);ctx.strokeStyle='#5e789c';ctx.lineWidth=3;ctx.strokeRect(x-55,y-55,110,110);drawPracticeShareShape(ctx,piece,x,y,88);});
+    return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not create solution image.')),'image/png'));
+  };
+
   shareButton.onclick = async () => {
     shareStatus.textContent = '';
     fallback.hidden = true;
     const resultToShare = shareText + '\n\nhttps://cd2st.github.io/CoDeTeSt2/?share=2';
+    let imageDownloaded = false;
+
+    if (practiceMode) {
+      try {
+        shareStatus.textContent = 'Preparing solved-code image…';
+        const blob = await createPracticeSolutionImage();
+        const file = new File([blob],'CodeTest2-Basic-Random.png',{type:'image/png'});
+        if (navigator.share && navigator.canShare?.({files:[file]})) {
+          try {
+            await navigator.share({title:`CodeTest2 — ${label} Random`,text:resultToShare,files:[file]});
+            shareStatus.textContent = 'Result shared with the solved-code image.';
+            return;
+          } catch (e) {
+            if (e?.name === 'AbortError') { shareStatus.textContent = 'Sharing canceled.'; return; }
+          }
+        }
+        const imageUrl=URL.createObjectURL(blob),download=document.createElement('a');
+        download.href=imageUrl; download.download=file.name; download.click();
+        setTimeout(()=>URL.revokeObjectURL(imageUrl),1000); imageDownloaded=true;
+      } catch (e) {}
+    }
 
     try {
       if (!navigator.clipboard) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(resultToShare);
-      shareStatus.textContent = 'Result copied to clipboard.';
+      shareStatus.textContent = imageDownloaded ? 'Result copied; solved-code image downloaded for sharing.' : 'Result copied to clipboard.';
       return;
     } catch (e) {}
 
@@ -1116,7 +1162,7 @@ newGame();
     field.remove();
 
     if (copied) {
-      shareStatus.textContent = 'Result copied to clipboard.';
+      shareStatus.textContent = imageDownloaded ? 'Result copied; solved-code image downloaded for sharing.' : 'Result copied to clipboard.';
       return;
     }
     fallback.textContent = resultToShare;
