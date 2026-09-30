@@ -1196,8 +1196,7 @@ function openDesktopSharePanel(blob,fileName,resultToShare){
       try {
         const blob = preparedPracticeResultBlob;
         const file = new File([blob],practiceMode?'CodeTest2-Basic-Random.png':'CodeTest2-Basic-Daily.png',{type:'image/png'});
-        const mobileFileSharing = navigator.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        if (!mobileFileSharing) { openDesktopSharePanel(blob,file.name,resultToShare); return; }
+        openDesktopSharePanel(blob,file.name,resultToShare); return;
         if (navigator.share && navigator.canShare?.({files:[file]})) {
           try {
             await navigator.share({title:`CodeTest2 — ${label} ${practiceMode?'Random':'Daily'}`,text:shareText,url:shareUrl,files:[file]});
