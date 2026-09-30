@@ -1169,27 +1169,27 @@ newGame();
   shareButton.onclick = async () => {
     shareStatus.textContent = '';
     fallback.hidden = true;
-    const resultToShare = shareText + '\n\nhttps://cd2st.github.io/CoDeTeSt2/?share=2';
+    const shareUrl = 'https://cd2st.github.io/CoDeTeSt2/?share=2';
+    const resultToShare = shareText + '\n\n' + shareUrl;
     let imageDownloaded = false;
 
     if (preparedPracticeResultBlob) {
       try {
         const blob = preparedPracticeResultBlob;
         const file = new File([blob],practiceMode?'CodeTest2-Basic-Random.png':'CodeTest2-Basic-Daily.png',{type:'image/png'});
-        const mobileFileSharing = navigator.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        if (mobileFileSharing && navigator.share && navigator.canShare?.({files:[file]})) {
+        if (navigator.share && navigator.canShare?.({files:[file]})) {
           try {
-            await navigator.share({title:`CodeTest2 — ${label} ${practiceMode?'Random':'Daily'}`,text:resultToShare,files:[file]});
-            shareStatus.textContent = 'Written result and result image shared.';
+            await navigator.share({title:`CodeTest2 — ${label} ${practiceMode?'Random':'Daily'}`,text:shareText,url:shareUrl,files:[file]});
+            shareStatus.textContent = 'Result image and clickable game link shared.';
             return;
           } catch (e) {
             if (e?.name === 'AbortError') { shareStatus.textContent = 'Sharing canceled.'; return; }
           }
         }
-        if (!mobileFileSharing && navigator.clipboard?.write && window.ClipboardItem) {
+        if (navigator.clipboard?.write && window.ClipboardItem) {
           try {
-            await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-            shareStatus.textContent = 'Result image copied. Paste it wherever you’d like to share it.';
+            await navigator.clipboard.write([new ClipboardItem({'image/png':blob,'text/plain':new Blob([resultToShare],{type:'text/plain'})})]);
+            shareStatus.textContent = 'Result image and game link copied. Paste them wherever you’d like to share them.';
             return;
           } catch (e) {}
         }
