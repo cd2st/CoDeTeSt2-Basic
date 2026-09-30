@@ -991,6 +991,26 @@ newGame();
   fallback.style.padding = '12px';
   shareStatus.insertAdjacentElement('afterend',fallback);
 
+  const prepareResultImage = (factory,message) => {
+    shareButton.disabled = true;
+    shareStatus.textContent = message;
+    const imagePromise = factory();
+    practiceResultImagePromise = imagePromise;
+    imagePromise.then(blob => {
+      if (practiceResultImagePromise !== imagePromise) return null;
+      preparedPracticeResultBlob = blob;
+      shareButton.disabled = false;
+      shareStatus.textContent = 'Result image ready to share.';
+      return blob;
+    }).catch(() => {
+      if (practiceResultImagePromise !== imagePromise) return null;
+      preparedPracticeResultBlob = null;
+      shareButton.disabled = false;
+      shareStatus.textContent = 'The written result is ready; the result image could not be prepared.';
+      return null;
+    });
+  };
+
   newGame = function () {
     preparedPracticeResultBlob = null;
     practiceResultImagePromise = null;
@@ -1065,25 +1085,9 @@ newGame();
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
         + `Time: ${elapsed}`;
       shareButton.hidden = false;
-      shareButton.disabled = true;
       returnDailyButton.hidden = false;
       againButton.textContent = 'PLAY ANOTHER RANDOM';
-      shareStatus.textContent = 'Preparing the solved-code image…';
-      const imagePromise = createPracticeSolutionImage();
-      practiceResultImagePromise = imagePromise;
-      imagePromise.then(blob => {
-        if (practiceResultImagePromise !== imagePromise) return null;
-        preparedPracticeResultBlob = blob;
-        shareButton.disabled = false;
-        shareStatus.textContent = 'Result image ready to share.';
-        return blob;
-      }).catch(() => {
-        if (practiceResultImagePromise !== imagePromise) return null;
-        preparedPracticeResultBlob = null;
-        shareButton.disabled = false;
-        shareStatus.textContent = 'Result text is ready; the solved-code image could not be prepared.';
-        return null;
-      });
+      prepareResultImage(createPracticeSolutionImage,'Preparing the completed-puzzle image…');
     } else {
       preparedPracticeResultBlob = null;
       practiceResultImagePromise = null;
@@ -1096,6 +1100,7 @@ newGame();
       shareButton.hidden = false;
       returnDailyButton.hidden = true;
       againButton.textContent = 'PLAY RANDOM PUZZLE';
+      prepareResultImage(createDailyResultImage,'Preparing the share-safe daily result image…');
     }
   };
 
@@ -1115,9 +1120,9 @@ newGame();
     document.getElementById('elapsedTime').textContent = 'Time: ' + dailySnapshot.elapsed;
     shareText = dailySnapshot.resultText;
     shareButton.hidden = false;
-    shareButton.disabled = false;
     returnDailyButton.hidden = true;
     againButton.textContent = 'PLAY RANDOM PUZZLE';
+    prepareResultImage(createDailyResultImage,'Preparing the share-safe daily result image…');
   };
 
   againButton.onclick = startPracticeGame;
@@ -1136,13 +1141,29 @@ newGame();
     ctx.fill(); ctx.restore();
   };
 
-  const createPracticeSolutionImage = () => {
-    const canvas=document.createElement('canvas'); canvas.width=900; canvas.height=340; const ctx=canvas.getContext('2d');
-    ctx.fillStyle='#08111f'; ctx.fillRect(0,0,900,340); ctx.strokeStyle='#30445f'; ctx.lineWidth=4; ctx.strokeRect(18,18,864,304);
-    ctx.fillStyle='#eef4ff'; ctx.font='800 42px system-ui'; ctx.textAlign='center'; ctx.fillText(`CodeTest2 — ${label} Random`,450,78);
-    ctx.fillStyle='#a9bad0'; ctx.font='700 25px system-ui'; ctx.fillText('SOLVED CODE',450,126);
-    secret.forEach((piece,index)=>{const x=225+index*150,y=220;ctx.fillStyle='#16243a';ctx.fillRect(x-55,y-55,110,110);ctx.strokeStyle='#5e789c';ctx.lineWidth=3;ctx.strokeRect(x-55,y-55,110,110);drawPracticeShareShape(ctx,piece,x,y,88);});
-    return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not create solution image.')),'image/png'));
+  const loadShareLogo = () => new Promise(resolve=>{const image=new Image();image.onload=()=>resolve(image);image.onerror=()=>resolve(null);image.src=headerLogoSrc;});
+  const drawWrittenResult = (ctx,width,startY) => {
+    ctx.fillStyle='#eef4ff';ctx.textAlign='center';
+    shareText.split('\n').forEach((line,index)=>{const displayed=index===0?line.replace(/^CodeTest2\s+—\s+/,''):line;ctx.font=index===0?'800 31px system-ui':'650 25px system-ui';ctx.fillText(displayed,width/2,startY+index*36);});
+  };
+  const createDailyResultImage = async () => {
+    const logoImage=await loadShareLogo(),width=900,height=480,canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
+    if(!logoImage)throw new Error('CodeTest2 logo unavailable');
+    ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.strokeStyle='#30445f';ctx.lineWidth=4;ctx.strokeRect(18,18,width-36,height-36);
+    {const logoWidth=480,logoHeight=Math.min(130,logoWidth*(logoImage.naturalHeight/logoImage.naturalWidth));ctx.drawImage(logoImage,(width-logoWidth)/2,28,logoWidth,logoHeight);}
+    drawWrittenResult(ctx,width,190);ctx.fillStyle='#a9bad0';ctx.font='700 22px system-ui';ctx.fillText('DAILY RESULT • SOLUTION NOT SHOWN',width/2,405);
+    return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not create daily result image.')),'image/png'));
+  };
+  const createPracticeSolutionImage = async () => {
+    const logoImage=await loadShareLogo(),width=1200,rowHeight=155,headerHeight=350,solutionHeight=190,height=headerHeight+guesses.length*rowHeight+solutionHeight,canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
+    if(!logoImage)throw new Error('CodeTest2 logo unavailable');
+    ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.strokeStyle='#30445f';ctx.lineWidth=3;ctx.strokeRect(18,18,width-36,height-36);
+    {const logoWidth=500,logoHeight=Math.min(125,logoWidth*(logoImage.naturalHeight/logoImage.naturalWidth));ctx.drawImage(logoImage,(width-logoWidth)/2,24,logoWidth,logoHeight);}
+    drawWrittenResult(ctx,width,165);ctx.fillStyle='#9fb1c8';ctx.font='700 22px system-ui';ctx.fillText('GUESS',330,335);ctx.fillText('POSITION-BY-POSITION FEEDBACK',900,335);
+    const feedbackColors={black:'#17191f',gray:'#e7d3a7',empty:'#65758a'},feedbackLabels=['SHAPE','COLOR','COMBO'];
+    guesses.forEach((round,index)=>{const top=headerHeight+index*rowHeight;ctx.fillStyle=index%2?'#0d1828':'#111e31';ctx.fillRect(38,top-5,width-76,rowHeight-10);ctx.fillStyle='#7f96b4';ctx.font='800 25px system-ui';ctx.textAlign='center';ctx.fillText(String(index+1),65,top+80);round.g.forEach((piece,pieceIndex)=>{const cx=140+pieceIndex*130,cy=top+72;ctx.fillStyle='#16243a';ctx.fillRect(cx-50,cy-50,100,100);ctx.strokeStyle='#405574';ctx.strokeRect(cx-50,cy-50,100,100);drawPracticeShareShape(ctx,piece,cx,cy,78);});['shape','color','combo'].forEach((dimension,dimensionIndex)=>{const y=top+14+dimensionIndex*42;ctx.fillStyle='#c6d5e8';ctx.font='800 19px system-ui';ctx.textAlign='right';ctx.fillText(feedbackLabels[dimensionIndex],760,y+25);round.fb[dimension].forEach((mark,markIndex)=>{const x=780+markIndex*88;ctx.fillStyle=feedbackColors[mark||'empty'];ctx.fillRect(x,y,70,30);ctx.strokeStyle=mark==='gray'?'#fff1cf':mark==='black'?'#7d6a50':'#26364e';ctx.strokeRect(x,y,70,30);});});});
+    const answerTop=headerHeight+guesses.length*rowHeight+20;ctx.fillStyle='#c6d5e8';ctx.font='800 25px system-ui';ctx.textAlign='left';ctx.fillText('SOLUTION',55,answerTop+58);secret.forEach((piece,index)=>{const cx=300+index*150,cy=answerTop+48;ctx.fillStyle='#16243a';ctx.fillRect(cx-52,cy-52,104,104);ctx.strokeStyle='#5e789c';ctx.strokeRect(cx-52,cy-52,104,104);drawPracticeShareShape(ctx,piece,cx,cy,80);});
+    return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not create completed-puzzle image.')),'image/png'));
   };
 
   shareButton.onclick = async () => {
@@ -1151,16 +1172,15 @@ newGame();
     const resultToShare = shareText + '\n\nhttps://cd2st.github.io/CoDeTeSt2/?share=2';
     let imageDownloaded = false;
 
-    if (practiceMode) {
+    if (preparedPracticeResultBlob) {
       try {
         const blob = preparedPracticeResultBlob;
-        if (!blob) throw new Error('Solved-code image unavailable');
-        const file = new File([blob],'CodeTest2-Basic-Random.png',{type:'image/png'});
+        const file = new File([blob],practiceMode?'CodeTest2-Basic-Random.png':'CodeTest2-Basic-Daily.png',{type:'image/png'});
         const mobileFileSharing = navigator.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         if (mobileFileSharing && navigator.share && navigator.canShare?.({files:[file]})) {
           try {
-            await navigator.share({title:`CodeTest2 — ${label} Random`,text:resultToShare,files:[file]});
-            shareStatus.textContent = 'Result shared with the solved-code image.';
+            await navigator.share({title:`CodeTest2 — ${label} ${practiceMode?'Random':'Daily'}`,text:resultToShare,files:[file]});
+            shareStatus.textContent = 'Written result and result image shared.';
             return;
           } catch (e) {
             if (e?.name === 'AbortError') { shareStatus.textContent = 'Sharing canceled.'; return; }
@@ -1175,7 +1195,7 @@ newGame();
     try {
       if (!navigator.clipboard) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(resultToShare);
-      shareStatus.textContent = imageDownloaded ? 'Result copied; solved-code image downloaded for sharing.' : 'Result copied to clipboard.';
+      shareStatus.textContent = imageDownloaded ? 'Written result copied; result image downloaded for sharing.' : 'Result copied to clipboard.';
       return;
     } catch (e) {}
 
@@ -1191,7 +1211,7 @@ newGame();
     field.remove();
 
     if (copied) {
-      shareStatus.textContent = imageDownloaded ? 'Result copied; solved-code image downloaded for sharing.' : 'Result copied to clipboard.';
+      shareStatus.textContent = imageDownloaded ? 'Written result copied; result image downloaded for sharing.' : 'Result copied to clipboard.';
       return;
     }
     fallback.textContent = resultToShare;
