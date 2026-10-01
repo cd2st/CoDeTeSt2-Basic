@@ -254,9 +254,7 @@ body{height:100dvh;display:flex;align-items:center}
 .actions .submit{background:linear-gradient(135deg,#20d8cf,#0798bd);border-color:#7ff5ec;color:#07151a;box-shadow:0 8px 20px #09bfd63d}
 .actions .submit:hover:not(:disabled){background:linear-gradient(135deg,#48e8df,#12afd0);border-color:#b2fff8}
 .undo-icon,.redo-icon{display:inline-block;font-size:1.65em;line-height:0;vertical-align:-.12em;margin-right:.12em;font-weight:900}
-.submit-wrap{position:relative;flex:1;display:flex;min-width:0}.submit-wrap .submit{width:100%;flex:1}.validation-popover{position:absolute;z-index:8;inset:2px;display:grid;grid-template-columns:repeat(4,10px);grid-template-rows:auto 10px;align-content:center;justify-content:center;gap:2px 3px;padding:1px 3px;background:linear-gradient(135deg,#17243a,#0e1928);border:1px solid #607697;border-radius:7px;box-shadow:inset 0 0 0 1px #ffffff12;pointer-events:none}.validation-title{grid-column:1/-1;color:#dbe8f8;font-size:6px;font-weight:950;line-height:1;letter-spacing:.04em;text-align:center;white-space:nowrap}.validation-popover[hidden]{display:none}.validation-box{width:10px;height:10px;border-radius:3px;border:1px solid #ff8997;background:#c52d43;box-shadow:inset 0 0 0 1px #5e101d}.validation-box.valid{border-color:#8cffae;background:#22ad58;box-shadow:inset 0 0 0 1px #075c29}.actions .submit.ready{border-color:#8cffae!important;box-shadow:0 0 0 3px #38dc7544,0 0 16px #38dc7588!important}
-@keyframes placeholderAttention{0%{transform:translateX(0) rotate(0);box-shadow:0 0 0 0 #ffcf5c00}12%{transform:translateX(-4px) rotate(-2deg);box-shadow:0 0 0 3px #ffcf5caa,0 0 18px #ffcf5c99}25%{transform:translateX(4px) rotate(2deg)}38%{transform:translateX(-3px) rotate(-1.5deg)}52%{transform:translateX(3px) rotate(1.5deg)}68%{transform:translateX(-2px) rotate(-1deg)}84%{transform:translateX(2px) rotate(1deg)}100%{transform:translateX(0) rotate(0);box-shadow:0 0 0 0 #ffcf5c00}}
-.guess-piece.placeholder-alert{position:relative;z-index:3;animation:placeholderAttention .9s ease-out}
+.submit-wrap{position:relative;flex:1;display:flex;min-width:0}.submit-wrap .submit{width:100%;flex:1;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1.05}.validation-popover{position:absolute;z-index:8;inset:2px;display:grid;grid-template-columns:repeat(4,10px);grid-template-rows:auto 10px;align-content:center;justify-content:center;gap:2px 3px;padding:1px 3px;background:linear-gradient(135deg,#17243a,#0e1928);border:1px solid #607697;border-radius:7px;box-shadow:inset 0 0 0 1px #ffffff12;pointer-events:none}.validation-title{grid-column:1/-1;color:#dbe8f8;font-size:6px;font-weight:950;line-height:1;letter-spacing:.04em;text-align:center;white-space:nowrap}.validation-popover[hidden]{display:none}.validation-box{width:10px;height:10px;border-radius:3px;border:1px solid #ff8997;background:#c52d43;box-shadow:inset 0 0 0 1px #5e101d}.validation-box.valid{border-color:#8cffae;background:#22ad58;box-shadow:inset 0 0 0 1px #075c29}.actions .submit.ready{border-color:#8cffae!important;box-shadow:0 0 0 3px #38dc7544,0 0 16px #38dc7588!important}
 .tile{touch-action:none}
 .tile.dragging{opacity:.5;transform:scale(.94)}
 .home-link{display:inline-block;text-decoration:none}
@@ -387,13 +385,13 @@ const colorPlaceholders=colors.map(([color,hex])=>({color,hex,shape:'color-place
 let secret=[], guesses=[], current=Array(4).fill(null), selectedSlot=null, dragFrom=null, dragPalettePiece=null, paletteLastDrag=0, lastDrop=0, startedAt=0, pausedAt=0, totalPausedMs=0, gameOver=false, undoStack=[], redoStack=[], clockStarted=false, highlightedPlaceholderSlot=null;
 const board=document.getElementById('board'), tiles=document.getElementById('tiles'), status=document.getElementById('status');
 const notesButton=document.getElementById('notesBtn'),clearNotesButton=document.getElementById('clearNotesBtn');
-let notesMode=false,activeNotesKey='',ruledOutShapes=new Set(),ruledOutColors=new Set(),ruledOutCombos=new Set(),pendingEliminatedAlertSlot=null;
+let notesMode=false,notesUsed=false,activeNotesKey='',ruledOutShapes=new Set(),ruledOutColors=new Set(),ruledOutCombos=new Set(),pendingEliminatedAlertSlot=null;
 const comboKey=p=>`${p.color}|${p.shape}`;
 function notesStorageKey(){const signature=secret.length===4?secret.map(p=>`${p.color}-${p.shape}`).join('_'):'pending';return `CoDeTeSt2.notes.basic.${signature}`;}
-function ensureNotesForCurrentPuzzle(){const key=notesStorageKey();if(key===activeNotesKey)return false;activeNotesKey=key;let saved=null;try{saved=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}ruledOutShapes=new Set(saved?.shapes||[]);ruledOutColors=new Set(saved?.colors||[]);ruledOutCombos=new Set(saved?.combos||[]);return true;}
-function saveNotes(){if(!activeNotesKey)ensureNotesForCurrentPuzzle();try{localStorage.setItem(activeNotesKey,JSON.stringify({shapes:[...ruledOutShapes],colors:[...ruledOutColors],combos:[...ruledOutCombos]}));}catch(e){}}
+function ensureNotesForCurrentPuzzle(){const key=notesStorageKey();if(key===activeNotesKey)return false;activeNotesKey=key;let saved=null;try{saved=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}ruledOutShapes=new Set(saved?.shapes||[]);ruledOutColors=new Set(saved?.colors||[]);ruledOutCombos=new Set(saved?.combos||[]);notesUsed=!!saved?.used;return true;}
+function saveNotes(){if(!activeNotesKey)ensureNotesForCurrentPuzzle();try{localStorage.setItem(activeNotesKey,JSON.stringify({shapes:[...ruledOutShapes],colors:[...ruledOutColors],combos:[...ruledOutCombos],used:notesUsed}));}catch(e){}}
 function isRuledOut(p){if(!p)return false;if(p.placeholderType==='shape')return ruledOutShapes.has(p.shape);if(p.placeholderType==='color')return ruledOutColors.has(p.color);return ruledOutShapes.has(p.shape)||ruledOutColors.has(p.color)||ruledOutCombos.has(comboKey(p));}
-function toggleRuledOut(p){ensureNotesForCurrentPuzzle();let set,key,label;if(p.placeholderType==='shape'){set=ruledOutShapes;key=p.shape;label=`${p.shape} in every color`;}else if(p.placeholderType==='color'){set=ruledOutColors;key=p.color;label=`${p.color} in every shape`;}else{set=ruledOutCombos;key=comboKey(p);label=`${p.color} ${p.shape}`;}const restoring=set.has(key);restoring?set.delete(key):set.add(key);saveNotes();renderPool();render();status.textContent=`${label} ${restoring?'restored':'marked as ruled out'}.`;}
+function toggleRuledOut(p){ensureNotesForCurrentPuzzle();let set,key,label;if(p.placeholderType==='shape'){set=ruledOutShapes;key=p.shape;label=`${p.shape} in every color`;}else if(p.placeholderType==='color'){set=ruledOutColors;key=p.color;label=`${p.color} in every shape`;}else{set=ruledOutCombos;key=comboKey(p);label=`${p.color} ${p.shape}`;}const restoring=set.has(key);restoring?set.delete(key):set.add(key);notesUsed=true;saveNotes();renderPool();render();status.textContent=`${label} ${restoring?'restored':'marked as ruled out'}.`;}
 function updateNotesControls(){notesButton.classList.toggle('active',notesMode);notesButton.setAttribute('aria-pressed',String(notesMode));notesButton.textContent=`NOTES MODE: ${notesMode?'ON':'OFF'}`;tiles.classList.toggle('notes-mode',notesMode);render();}
 function decorateRuledOutGuess(){for(let i=0;i<4;i++){const cell=document.querySelector(`[data-guess-index="${i}"]`);if(!cell||!current[i])continue;const eliminated=notesMode&&isRuledOut(current[i]);cell.classList.toggle('ruled-out-guess',eliminated);if(eliminated&&pendingEliminatedAlertSlot===i){cell.classList.add('eliminated-wiggle');setTimeout(()=>cell.classList.remove('eliminated-wiggle'),700);}}pendingEliminatedAlertSlot=null;}
 
@@ -537,7 +535,7 @@ function select(p,i){
   }
   recordUndo();
   current[target]=p;if(notesMode&&isRuledOut(p))pendingEliminatedAlertSlot=target;
-  highlightedPlaceholderSlot=p.placeholder?target:null;
+  highlightedPlaceholderSlot=null;
   selectedSlot=null;
   document.querySelectorAll('.tile').forEach(x=>x.classList.remove('selected'));
   render();
@@ -734,9 +732,7 @@ function roundBlock(r){
   for(let i=0;i<4;i++){
     const c=document.createElement('div');
     const active=r===guesses.length&&!data,editable=active&&!!guess[i];
-    const placeholderAlert=active&&i===highlightedPlaceholderSlot&&guess[i]?.placeholder;
-    c.className='guess-piece '+(active?'current ':'')+(editable?'editable ':'')+(active&&selectedSlot===i?'slot-selected ':'')+(placeholderAlert?'placeholder-alert':'');
-    if(placeholderAlert)c.addEventListener('animationend',()=>{if(highlightedPlaceholderSlot===i)highlightedPlaceholderSlot=null;c.classList.remove('placeholder-alert');},{once:true});
+    c.className='guess-piece '+(active?'current ':'')+(editable?'editable ':'')+(active&&selectedSlot===i?'slot-selected ':'');
     if(guess[i]){
       c.appendChild(makeShape(guess[i]));
       if(active)addRemoveControl(c,i);
@@ -1125,7 +1121,7 @@ newGame();
     if (practiceMode) {
       shareText = `CodeTest2 — ${label} Random\n${displayDate(challengeDate || dateKey())}\n`
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
-        + `Time: ${elapsed}`;
+        + `Time: ${elapsed}\nNotes Mode: ${notesUsed?'Used':'Not used'}`;
       shareButton.hidden = false;
       returnDailyButton.hidden = true;
       againButton.textContent = 'PLAY ANOTHER RANDOM';
@@ -1138,7 +1134,7 @@ newGame();
       shareButton.disabled = false;
       shareText = `CodeTest2 — ${label} Daily\n${displayDate(challengeDate)}\n`
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
-        + `Time: ${elapsed}`;
+        + `Time: ${elapsed}\nNotes Mode: ${notesUsed?'Used':'Not used'}`;
       dailySnapshot = {win,elapsed,resultText:shareText,secret:[...secret],guesses:guesses.map(row=>({g:[...row.g],fb:row.fb}))};
       saveDailySnapshot(challengeDate,dailySnapshot);
       shareButton.hidden = false;
