@@ -1255,8 +1255,14 @@ function openDesktopSharePanel(blob,fileName,resultToShare,shareKind){
     shareStatus.textContent = 'Select and copy the result below:';
   };
 
+  function showGameModeChooser(startDaily,startRandom){
+    const overlay=document.createElement('div');overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Choose a puzzle');overlay.style.cssText='position:fixed;inset:0;z-index:12000;background:rgba(2,7,14,.88);display:flex;align-items:center;justify-content:center;padding:20px';
+    const card=document.createElement('div');card.style.cssText='width:min(410px,100%);background:#111e31;color:#eef4ff;border:2px solid #5e789c;border-radius:18px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.6);text-align:center;font-family:system-ui';card.innerHTML='<h2 style="margin:0 0 8px;font-size:24px">CHOOSE YOUR PUZZLE</h2><p style="margin:0 0 18px;color:#c6d5e8">Play today’s shared challenge or continue your saved random puzzle.</p><div data-actions style="display:grid;gap:10px"></div>';
+    const actions=card.querySelector('[data-actions]');const add=(label,selectedMode,start)=>{const button=document.createElement('button');button.type='button';button.textContent=label;button.style.cssText='width:100%;padding:12px;border:1px solid #7189a8;border-radius:10px;background:#243957;color:#fff;font:800 15px system-ui;cursor:pointer';button.onclick=()=>{history.replaceState(null,'',location.pathname+'?mode='+selectedMode+location.hash);overlay.remove();start();};actions.appendChild(button);return button;};
+    const daily=add('DAILY PUZZLE','daily',startDaily);add('RANDOM PUZZLE','random',startRandom);overlay.appendChild(card);document.body.appendChild(overlay);daily.focus();
+  }
   const requestedGameMode = new URLSearchParams(location.search).get('mode');
-  requestedGameMode === 'random' ? startPracticeGame(true) : newGame();
+  requestedGameMode === 'random' ? startPracticeGame(true) : requestedGameMode === 'daily' ? newGame() : showGameModeChooser(newGame,()=>startPracticeGame(true));
   const checkDate = () => {
     if (!practiceMode && dateKey() !== challengeDate) newGame();
   };
