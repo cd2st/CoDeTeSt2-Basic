@@ -263,6 +263,19 @@ body{height:100dvh;display:flex;align-items:center}
 .ip-notice{margin:20px 0 0;padding-top:14px;border-top:1px solid #34445e;color:#8193aa;font-size:10px;line-height:1.5;text-align:center}.ip-notice strong{color:#a9bad0}
 .title{display:flex;align-items:center;justify-content:center;gap:9px}.header-logo{display:block;width:auto;height:clamp(38px,6vh,56px);max-width:58%}.header-version{font-size:.72em;line-height:1.05;text-align:left;white-space:nowrap}.header-detail{display:block;font-size:.67em;color:#9fb1c8;margin-top:2px}@media(max-width:850px){.header-logo{height:clamp(22px,4.2vh,34px);max-width:48%}}
 .scripture{flex:0 0 auto;text-align:center;color:#b7c7db;font-size:clamp(8px,1.2vh,11px);line-height:1.25;letter-spacing:.015em}.scripture strong{color:#edf5ff}.scripture-top{margin:-2px 0 5px}.scripture-bottom{margin:5px 0 -1px}
+
+.notes-actions{display:grid;grid-template-columns:1fr 1fr;flex:0 0 30px;gap:5px;margin-top:4px}
+.notes-actions button{min-height:28px;padding:4px 7px;border:1px solid #607697;border-radius:7px;background:#17243a;color:#dbe8f8;font-size:9px;font-weight:900;letter-spacing:.04em}
+.notes-actions button.active{background:#78431d;border-color:#ffc078;color:#fff4df;box-shadow:0 0 0 2px #ffb15a3d}
+.tiles.notes-mode .tile{cursor:crosshair}
+.tile.ruled-out{position:relative}
+.tile.ruled-out .shape{opacity:.28;filter:grayscale(1)}
+.tile.ruled-out::before,.guess-piece.ruled-out-guess::before{content:'';position:absolute;z-index:8;left:7%;right:7%;top:calc(50% - 2px);height:4px;border-radius:4px;background:#ff1f38;transform:rotate(-28deg);box-shadow:0 1px 2px #000,0 0 3px #ff1f38;pointer-events:none}
+.guess-piece.ruled-out-guess{position:relative}
+.guess-piece.ruled-out-guess .shape{opacity:.28;filter:grayscale(1)}
+.guess-piece.eliminated-wiggle{animation:eliminatedWiggle .62s ease-in-out}
+@keyframes eliminatedWiggle{0%,100%{transform:translateX(0)}15%{transform:translateX(-6px) rotate(-2deg)}30%{transform:translateX(6px) rotate(2deg)}45%{transform:translateX(-5px) rotate(-2deg)}60%{transform:translateX(5px) rotate(2deg)}75%{transform:translateX(-3px)}90%{transform:translateX(3px)}}
+
 </style>
 </head>
 <body>
@@ -284,7 +297,8 @@ body{height:100dvh;display:flex;align-items:center}
       <section class="pool">
         <h2>SELECT YOUR GUESS</h2>
         <div class="tiles" id="tiles"></div>
-        <div class="actions"><button id="undoBtn" disabled><span class="undo-icon" aria-hidden="true">↶</span> UNDO</button><button id="redoBtn" disabled><span class="redo-icon" aria-hidden="true">↷</span> REDO</button><button id="clearBtn">CLEAR GUESS</button><div class="submit-wrap"><div class="validation-popover" id="validationPopover" aria-label="Guess readiness by position" hidden><span class="validation-title">GUESS READY?</span><i class="validation-box"></i><i class="validation-box"></i><i class="validation-box"></i><i class="validation-box"></i></div><button class="submit" id="submitBtn" disabled>SUBMIT GUESS</button></div></div>
+        <div class="notes-actions"><button id="notesBtn" type="button" aria-pressed="false">NOTES MODE: OFF</button><button id="clearNotesBtn" type="button">CLEAR NOTES</button></div>
+      <div class="actions"><button id="undoBtn" disabled><span class="undo-icon" aria-hidden="true">↶</span> UNDO</button><button id="redoBtn" disabled><span class="redo-icon" aria-hidden="true">↷</span> REDO</button><button id="clearBtn">CLEAR GUESS</button><div class="submit-wrap"><div class="validation-popover" id="validationPopover" aria-label="Guess readiness by position" hidden><span class="validation-title">GUESS READY?</span><i class="validation-box"></i><i class="validation-box"></i><i class="validation-box"></i><i class="validation-box"></i></div><button class="submit" id="submitBtn" disabled>SUBMIT GUESS</button></div></div>
         <div class="status" id="status">Click four pieces from the pool to build your guess.</div>
       </section>
       <aside class="rules">
@@ -334,6 +348,7 @@ body{height:100dvh;display:flex;align-items:center}
 
     <h3>Planning placeholders</h3>
     <p>The gray shapes represent “this shape in any color.” The solid color boxes represent “this color in any shape.” They can be positioned like regular pieces while you reason through the puzzle, but they cannot be submitted.</p>
+<h3>Elimination notes</h3><p>Turn on <b>Notes Mode</b> to mark possibilities as ruled out. Tap a colored shape to eliminate only that combination, a gray shape to eliminate that shape in every color, or a solid color box to eliminate that color in every shape. Tap again to restore it. You may still drag a ruled-out item into your current guess; it will appear gray with a red slash as a reminder.</p>
 
     <h3>Shared challenge and timing</h3>
     <p>The hidden code may repeat shapes, colors, both, or neither. A new shared challenge begins each day at midnight Central Time. Choose <b>Random Puzzle</b> for unlimited additional games. Pause or open these instructions whenever needed; time spent on either screen is excluded from your solve time.</p>
@@ -371,6 +386,17 @@ const shapePlaceholders=shapes.map(shape=>({color:'any color',hex:'#4d535a',shap
 const colorPlaceholders=colors.map(([color,hex])=>({color,hex,shape:'color-placeholder',placeholder:true,placeholderType:'color'}));
 let secret=[], guesses=[], current=Array(4).fill(null), selectedSlot=null, dragFrom=null, dragPalettePiece=null, paletteLastDrag=0, lastDrop=0, startedAt=0, pausedAt=0, totalPausedMs=0, gameOver=false, undoStack=[], redoStack=[], clockStarted=false, highlightedPlaceholderSlot=null;
 const board=document.getElementById('board'), tiles=document.getElementById('tiles'), status=document.getElementById('status');
+const notesButton=document.getElementById('notesBtn'),clearNotesButton=document.getElementById('clearNotesBtn');
+let notesMode=false,activeNotesKey='',ruledOutShapes=new Set(),ruledOutColors=new Set(),ruledOutCombos=new Set(),pendingEliminatedAlertSlot=null;
+const comboKey=p=>`${p.color}|${p.shape}`;
+function notesStorageKey(){const signature=secret.length===4?secret.map(p=>`${p.color}-${p.shape}`).join('_'):'pending';return `CoDeTeSt2.notes.basic.${signature}`;}
+function ensureNotesForCurrentPuzzle(){const key=notesStorageKey();if(key===activeNotesKey)return false;activeNotesKey=key;let saved=null;try{saved=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}ruledOutShapes=new Set(saved?.shapes||[]);ruledOutColors=new Set(saved?.colors||[]);ruledOutCombos=new Set(saved?.combos||[]);return true;}
+function saveNotes(){if(!activeNotesKey)ensureNotesForCurrentPuzzle();try{localStorage.setItem(activeNotesKey,JSON.stringify({shapes:[...ruledOutShapes],colors:[...ruledOutColors],combos:[...ruledOutCombos]}));}catch(e){}}
+function isRuledOut(p){if(!p)return false;if(p.placeholderType==='shape')return ruledOutShapes.has(p.shape);if(p.placeholderType==='color')return ruledOutColors.has(p.color);return ruledOutShapes.has(p.shape)||ruledOutColors.has(p.color)||ruledOutCombos.has(comboKey(p));}
+function toggleRuledOut(p){ensureNotesForCurrentPuzzle();let set,key,label;if(p.placeholderType==='shape'){set=ruledOutShapes;key=p.shape;label=`${p.shape} in every color`;}else if(p.placeholderType==='color'){set=ruledOutColors;key=p.color;label=`${p.color} in every shape`;}else{set=ruledOutCombos;key=comboKey(p);label=`${p.color} ${p.shape}`;}const restoring=set.has(key);restoring?set.delete(key):set.add(key);saveNotes();renderPool();render();status.textContent=`${label} ${restoring?'restored':'marked as ruled out'}.`;}
+function updateNotesControls(){notesButton.classList.toggle('active',notesMode);notesButton.setAttribute('aria-pressed',String(notesMode));notesButton.textContent=`NOTES MODE: ${notesMode?'ON':'OFF'}`;tiles.classList.toggle('notes-mode',notesMode);render();}
+function decorateRuledOutGuess(){for(let i=0;i<4;i++){const cell=document.querySelector(`[data-guess-index="${i}"]`);if(!cell||!current[i])continue;const eliminated=notesMode&&isRuledOut(current[i]);cell.classList.toggle('ruled-out-guess',eliminated);if(eliminated&&pendingEliminatedAlertSlot===i){cell.classList.add('eliminated-wiggle');setTimeout(()=>cell.classList.remove('eliminated-wiggle'),700);}}pendingEliminatedAlertSlot=null;}
+
 const pauseButton=document.getElementById('pauseBtn'), pauseOverlay=document.getElementById('pauseOverlay'), resumeButton=document.getElementById('resumeBtn');
 const instructionsButton=document.getElementById('instructionsBtn'), instructionsModal=document.getElementById('instructionsModal'), closeInstructionsButton=document.getElementById('closeInstructionsBtn');
 const pauseInstructionsButton=document.getElementById('pauseInstructionsBtn');
@@ -447,6 +473,7 @@ function makeShape(p){
   return el;
 }
 function renderPool(){
+ ensureNotesForCurrentPuzzle();
   tiles.innerHTML='';
   const addTile=(p,i)=>{
     const b=document.createElement('button');
@@ -458,6 +485,7 @@ function renderPool(){
       :p.color+' '+p.shape;
     b.dataset.i=i;
     b.appendChild(makeShape(p));
+    if(isRuledOut(p)){b.classList.add('ruled-out');b.setAttribute('aria-description','Marked as ruled out');}
     wirePaletteTile(b,p,i);tiles.appendChild(b);
   };
   pieces.forEach(addTile);
@@ -470,7 +498,7 @@ function renderPool(){
 function wirePaletteTile(b,p,i){
   b.draggable=true;
   b.setAttribute('aria-label',b.title+'. Drag or tap to place.');
-  b.onclick=()=>{if(Date.now()-paletteLastDrag>250)select(p,i);};
+  b.onclick=()=>{if(Date.now()-paletteLastDrag>250){if(notesMode)toggleRuledOut(p);else select(p,i);}};
   b.ondragstart=e=>{
     dragPalettePiece=p;dragFrom=null;b.classList.add('dragging');
     e.dataTransfer.effectAllowed='copy';e.dataTransfer.setData('text/plain','palette');
@@ -508,7 +536,7 @@ function select(p,i){
     return;
   }
   recordUndo();
-  current[target]=p;
+  current[target]=p;if(notesMode&&isRuledOut(p))pendingEliminatedAlertSlot=target;
   highlightedPlaceholderSlot=p.placeholder?target:null;
   selectedSlot=null;
   document.querySelectorAll('.tile').forEach(x=>x.classList.remove('selected'));
@@ -745,6 +773,8 @@ function render(){
   document.getElementById('submitBtn').classList.toggle('ready',allValid);
   document.getElementById('undoBtn').disabled=undoStack.length===0;
   document.getElementById('redoBtn').disabled=redoStack.length===0;
+ if(ensureNotesForCurrentPuzzle())renderPool();
+ decorateRuledOutGuess();
 }
 function recordUndo(){
   undoStack.push({current:[...current],selectedSlot});
@@ -817,7 +847,9 @@ instructionsButton.onclick=openInstructions;
 pauseInstructionsButton.onclick=openInstructions;
 closeInstructionsButton.onclick=closeInstructions;
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!instructionsModal.hidden)closeInstructions();});
-renderPool();
+notesButton.onclick=()=>{notesMode=!notesMode;updateNotesControls();renderPool();status.textContent=notesMode?'Notes Mode is on. Tap to mark items; drag to test a ruled-out item in your guess.':'Notes Mode is off. Palette items now build your guess.';};
+clearNotesButton.onclick=()=>{ensureNotesForCurrentPuzzle();ruledOutShapes.clear();ruledOutColors.clear();ruledOutCombos.clear();saveNotes();renderPool();render();status.textContent='All elimination notes for this puzzle were cleared.';};
+renderPool();updateNotesControls();
 newGame();
 </script>
 <script>
