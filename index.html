@@ -336,7 +336,7 @@ body{height:100dvh;display:flex;align-items:center}
     <p>The gray shapes represent “this shape in any color.” The solid color boxes represent “this color in any shape.” They can be positioned like regular pieces while you reason through the puzzle, but they cannot be submitted.</p>
 
     <h3>Shared challenge and timing</h3>
-    <p>The hidden code may repeat shapes, colors, both, or neither. A new shared challenge begins each day at midnight Central Time. After completing it, choose <b>Play Random Puzzle</b> for unlimited Practice games. Pause or open these instructions whenever needed; time spent on either screen is excluded from your solve time.</p>
+    <p>The hidden code may repeat shapes, colors, both, or neither. A new shared challenge begins each day at midnight Central Time. Choose <b>Random Puzzle</b> for unlimited additional games. Pause or open these instructions whenever needed; time spent on either screen is excluded from your solve time.</p>
     <p class="ip-notice"><strong>CodeTest2™ © 2026 Brian Dunbar. All rights reserved.</strong><br>The original interface, artwork, written content, and source code may not be reproduced or distributed without permission.</p>
   </div>
 </div>
@@ -831,7 +831,7 @@ newGame();
   const headerLogoSrc = document.querySelector('.pause-logo').src;
   const headerTitle = (version,detail='') => `<img class="header-logo" src="${headerLogoSrc}" alt="CodeTest2"><span class="header-version">${version}${detail?`<span class="header-detail">${detail}</span>`:''}</span>`;
   const dailyHeading = headerTitle('CRACK THE CODE');
-  const practiceHeading = headerTitle('PRACTICE GAME');
+  const practiceHeading = `<img class="header-logo" src="${headerLogoSrc}" alt="CodeTest2">`;
   heading.innerHTML = dailyHeading;
 
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -864,24 +864,29 @@ newGame();
     catch (e) {}
   };
   const progressStorageKey = `CoDeTeSt2.progress.${mode}.v1`;
-  const clearProgress = () => {
-    try { localStorage.removeItem(progressStorageKey); } catch (e) {}
-  };
+  const randomProgressStorageKey = `CoDeTeSt2.random.${mode}.v2`;
+  const clearDailyProgress = () => { try { localStorage.removeItem(progressStorageKey); } catch (e) {} };
+  const clearRandomProgress = () => { try { localStorage.removeItem(randomProgressStorageKey); } catch (e) {} };
   const saveProgress = () => {
     if (gameOver || !secret.length) return;
     try {
-      localStorage.setItem(progressStorageKey,JSON.stringify({
-        version:1,challengeDate,practiceMode,secret,guesses,current,selectedSlot,undoStack,redoStack,clockStarted,
+      localStorage.setItem(practiceMode ? randomProgressStorageKey : progressStorageKey,JSON.stringify({
+        version:2,challengeDate,practiceMode,secret,guesses,current,selectedSlot,undoStack,redoStack,clockStarted,completed:false,
         elapsedMs:elapsedMilliseconds()
       }));
     } catch (e) {}
   };
-  const restoreProgress = () => {
+  const restoreProgress = targetMode => {
+    const restoringRandom = targetMode === 'random';
+    const targetKey = restoringRandom ? randomProgressStorageKey : progressStorageKey;
     let saved = null;
-    try { saved = JSON.parse(localStorage.getItem(progressStorageKey) || 'null'); }
-    catch (e) { clearProgress(); }
-    if (!saved || saved.version !== 1 || !Array.isArray(saved.secret) || saved.secret.length !== 4) return false;
-    if (!saved.practiceMode && saved.challengeDate !== dateKey()) { clearProgress(); return false; }
+    try { saved = JSON.parse(localStorage.getItem(targetKey) || 'null'); }
+    catch (e) { restoringRandom ? clearRandomProgress() : clearDailyProgress(); }
+    if(!restoringRandom && saved?.practiceMode){try{localStorage.setItem(randomProgressStorageKey,JSON.stringify(saved));localStorage.removeItem(progressStorageKey);}catch(e){}return false;}
+    if(restoringRandom && !saved){try{const legacy=JSON.parse(localStorage.getItem(progressStorageKey)||'null');if(legacy?.practiceMode){saved=legacy;localStorage.setItem(randomProgressStorageKey,JSON.stringify(legacy));localStorage.removeItem(progressStorageKey);}}catch(e){}}
+    if (!saved || ![1,2].includes(saved.version) || !Array.isArray(saved.secret) || saved.secret.length !== 4) return false;
+    if (restoringRandom !== !!saved.practiceMode) return false;
+    if (!restoringRandom && saved.challengeDate !== dateKey()) { clearDailyProgress(); return false; }
     practiceMode = !!saved.practiceMode;
     challengeDate = saved.challengeDate || dateKey();
     secret = saved.secret;
@@ -892,14 +897,18 @@ newGame();
     redoStack = Array.isArray(saved.redoStack) ? saved.redoStack : [];
     clockStarted = guesses.length>0 || current.some(Boolean) || undoStack.length>0 || redoStack.length>0;
     heading.innerHTML = practiceMode ? practiceHeading : dailyHeading;
-    shareButton.hidden = practiceMode;
-    returnDailyButton.hidden = !practiceMode;
+    shareButton.hidden = practiceMode && !saved.completed;
+    returnDailyButton.hidden = true;
     againButton.textContent = practiceMode ? 'PLAY ANOTHER RANDOM' : 'PLAY RANDOM PUZZLE';
     document.getElementById('modal').classList.remove('show');
     startedAt = clockStarted ? Date.now() - Math.max(0,Number(saved.elapsedMs) || 0) : 0;
     totalPausedMs = 0;
     gameOver = false;
     pauseButton.disabled = false;
+    if(restoringRandom && saved.completed){
+      clockStarted=true;pausedAt=0;startedAt=Date.now()-Math.max(0,Number(saved.elapsedMs)||0);totalPausedMs=0;
+      render();endGame(!!saved.win);status.textContent='Completed random puzzle restored.';return true;
+    }
     let immediateResume = false;
     try {
       immediateResume = Number(sessionStorage.getItem(resumeGuardStorageKey) || 0) > Date.now();
@@ -1038,22 +1047,24 @@ newGame();
     render();
     const savedSnapshot = loadDailySnapshot(challengeDate);
     if (savedSnapshot) {
-      clearProgress();
+      clearDailyProgress();
       dailySnapshot = savedSnapshot;
       shareText = savedSnapshot.resultText;
       returnToDailyResult();
       status.textContent = 'Today’s challenge is already complete in this browser. Review it or play a random puzzle.';
       return;
     }
-    if (restoreProgress()) return;
+    if (restoreProgress('daily')) return;
     status.textContent = 'Click a guess box, then choose a piece from the pool.';
   };
 
-  const startPracticeGame = () => {
+  const startPracticeGame = resumeExisting => {
+    if(resumeExisting===true && restoreProgress('random')) return;
     preparedPracticeResultBlob = null;
     practiceResultImagePromise = null;
-    clearProgress();
+    clearRandomProgress();
     practiceMode = true;
+    challengeDate = dateKey();
     heading.innerHTML = practiceHeading;
     startedAt = 0;
     clockStarted = false;
@@ -1067,28 +1078,29 @@ newGame();
     redoStack = [];
     document.getElementById('modal').classList.remove('show');
     shareButton.hidden = true;
-    returnDailyButton.hidden = false;
+    returnDailyButton.hidden = true;
     againButton.textContent = 'PLAY ANOTHER RANDOM';
     shareStatus.textContent = '';
     fallback.hidden = true;
     render();
-    status.textContent = 'Practice game: click a guess box, then choose a piece from the pool.';
+    status.textContent = 'Random puzzle: click a guess box, then choose a piece from the pool.';
   };
 
   const originalEndGame = endGame;
   endGame = function (win) {
-    clearProgress();
     originalEndGame(win);
     const elapsed = formatElapsed(elapsedMilliseconds());
     if (practiceMode) {
-      shareText = `CodeTest2 — ${label} Random\n${displayDate(dateKey())}\n`
+      shareText = `CodeTest2 — ${label} Random\n${displayDate(challengeDate || dateKey())}\n`
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
         + `Time: ${elapsed}`;
       shareButton.hidden = false;
-      returnDailyButton.hidden = false;
+      returnDailyButton.hidden = true;
       againButton.textContent = 'PLAY ANOTHER RANDOM';
       prepareResultImage(createPracticeSolutionImage,'Preparing the completed-puzzle image…');
+      try{localStorage.setItem(randomProgressStorageKey,JSON.stringify({version:2,completed:true,win,challengeDate:challengeDate||dateKey(),practiceMode:true,secret,guesses,current:Array(4).fill(null),selectedSlot:null,undoStack:[],redoStack:[],clockStarted:true,elapsedMs:elapsedMilliseconds()}));}catch(e){}
     } else {
+      clearDailyProgress();
       preparedPracticeResultBlob = null;
       practiceResultImagePromise = null;
       shareButton.disabled = false;
@@ -1105,7 +1117,6 @@ newGame();
   };
 
   const returnToDailyResult = () => {
-    clearProgress();
     if (!dailySnapshot) { newGame(); return; }
     practiceMode = false;
     heading.innerHTML = dailyHeading;
@@ -1244,7 +1255,8 @@ function openDesktopSharePanel(blob,fileName,resultToShare,shareKind){
     shareStatus.textContent = 'Select and copy the result below:';
   };
 
-  newGame();
+  const requestedGameMode = new URLSearchParams(location.search).get('mode');
+  requestedGameMode === 'random' ? startPracticeGame(true) : newGame();
   const checkDate = () => {
     if (!practiceMode && dateKey() !== challengeDate) newGame();
   };
