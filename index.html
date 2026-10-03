@@ -853,13 +853,13 @@ newGame();
   const mode = document.title.includes('Basic') ? 'entry'
     : document.title.includes('NO repeating') ? 'noRepeat' : 'mayRepeat';
   const label = mode === 'entry' ? 'Basic'
-    : mode === 'noRepeat' ? 'Advanced (No Repeats)' : 'Advanced (May Repeat)';
+    : mode === 'noRepeat' ? 'CHALLENGE (No Repeats)' : 'CHALLENGE (May Repeat)';
 
   const heading = document.querySelector('.title');
   const headerLogoSrc = document.querySelector('.pause-logo').src;
   const headerTitle = (version,detail='') => `<img class="header-logo" src="${headerLogoSrc}" alt="CodeTest2"><span class="header-version">${version}${detail?`<span class="header-detail">${detail}</span>`:''}</span>`;
   const dailyHeading = headerTitle('CRACK THE CODE');
-  const practiceHeading = `<img class="header-logo" src="${headerLogoSrc}" alt="CodeTest2">`;
+  const practiceHeading = headerTitle('RANDOM');
   heading.innerHTML = dailyHeading;
 
   const formatter = new Intl.DateTimeFormat('en-US', {
