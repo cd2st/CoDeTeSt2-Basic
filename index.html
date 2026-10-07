@@ -977,6 +977,7 @@ newGame();
   const clearDailyProgress = () => { try { localStorage.removeItem(progressStorageKey); } catch (e) {} };
   const clearRandomProgress = () => { try { localStorage.removeItem(randomProgressStorageKey); } catch (e) {} };
   const saveProgress = () => {
+    try{localStorage.setItem(progressStorageKey+".lastMode",practiceMode?"random":"daily");}catch(e){}
     if (gameOver || !secret.length) return;
     try {
       localStorage.setItem(practiceMode ? randomProgressStorageKey : progressStorageKey,JSON.stringify({
@@ -1192,11 +1193,12 @@ newGame();
     shareStatus.textContent = '';
     fallback.hidden = true;
     render();
-    status.textContent = 'Random puzzle: click a guess box, then choose a piece from the pool.';
+    status.textContent = 'Random puzzle: click a guess box, then choose a piece from the pool.';saveProgress();
   };
 
   const originalEndGame = endGame;
   endGame = function (win) {
+    saveProgress();
     originalEndGame(win);
     const elapsed = formatElapsed(elapsedMilliseconds());
     if (practiceMode) {
@@ -1287,21 +1289,24 @@ newGame();
   };
 
 function openDesktopSharePanel(blob,fileName,resultToShare,shareKind){
- const previous=document.getElementById('desktopSharePanel');if(previous)previous.remove();
+ const old=document.getElementById('desktopSharePanel');if(old)old.remove();
  const overlay=document.createElement('div');overlay.id='desktopSharePanel';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Share result');
- overlay.style.cssText='position:fixed;inset:0;z-index:10000;background:rgba(2,7,14,.82);display:flex;align-items:center;justify-content:center;padding:18px';
- const panel=document.createElement('div');panel.style.cssText='width:min(430px,100%);max-height:92vh;overflow:auto;background:#111e31;color:#eef4ff;border:2px solid #5e789c;border-radius:16px;padding:20px;box-shadow:0 18px 55px rgba(0,0,0,.55);font:600 15px/1.4 system-ui;text-align:center';
- panel.innerHTML='<h2 style="margin:0 0 14px;font-size:24px">SHARE RESULT</h2><div data-buttons style="display:grid;gap:9px"></div><div data-status role="status" style="min-height:22px;margin-top:12px;color:#ffe08a"></div>';
+ overlay.style.cssText='position:fixed;inset:0;z-index:10000;background:#02070ee8;display:flex;align-items:center;justify-content:center;padding:18px';
+ const panel=document.createElement('div');panel.style.cssText='width:min(430px,100%);max-height:92dvh;overflow:auto;background:#111e31;color:#eef4ff;border:2px solid #5e789c;border-radius:16px;padding:20px;font:600 15px/1.4 system-ui;text-align:center';
+ panel.innerHTML='<h2 style="margin:0 0 14px">SHARE RESULT</h2><div data-buttons style="display:grid;gap:9px"></div><div data-status role="status" style="min-height:22px;margin-top:12px;color:#ffe08a"></div>';
  const buttons=panel.querySelector('[data-buttons]'),status=panel.querySelector('[data-status]');
- const gameUrlPattern=/https:\/\/cd2st\.github\.io\/CoDeTeSt2\/(?:\?share=2)?/gi,foundUrls=resultToShare.match(gameUrlPattern)||[];
- const resultOnly=resultToShare.replace(gameUrlPattern,'').split(/\r?\n/).map(line=>line.trim()).join('\n').replace(/\n{3,}/g,'\n\n').trim();
- const normalizedResult=resultOnly+(foundUrls[0]?'\n\n'+foundUrls[0].trim():'');
- const addButton=(label,action)=>{const button=document.createElement('button');button.type='button';button.textContent=label;button.style.cssText='width:100%;padding:11px 12px;border:1px solid #7189a8;border-radius:9px;background:#243957;color:#fff;font:800 14px system-ui;cursor:pointer';button.onclick=action;buttons.appendChild(button);return button;};
- const copyText=async()=>{try{await navigator.clipboard.writeText(normalizedResult);status.textContent='One written result and one clickable link copied. Paste them into your message.';}catch(error){const field=document.createElement('textarea');field.value=normalizedResult;field.style.cssText='position:fixed;opacity:0';document.body.appendChild(field);field.select();let copied=false;try{copied=document.execCommand('copy');}catch(e){}field.remove();status.textContent=copied?'One written result and one clickable link copied. Paste them into your message.':'Copying was blocked by the browser. Select the result from the game’s fallback text.';}};
- if(shareKind==='image'){const imageButton=addButton('COPY IMAGE',async()=>{if(!blob)return;try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);status.textContent='Image copied. Paste it into your message.';}catch(error){status.textContent='Your browser blocked image copying.';}});if(!blob){imageButton.disabled=true;imageButton.style.opacity='.45';}}
- else addButton('COPY RESULT + LINK',copyText);
- addButton('CLOSE',()=>overlay.remove());
- overlay.appendChild(panel);document.body.appendChild(overlay);overlay.addEventListener('click',event=>{if(event.target===overlay)overlay.remove();});
+ const addButton=(label,action)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.style.cssText='width:100%;padding:11px;border:1px solid #7189a8;border-radius:9px;background:#243957;color:#fff;font:800 14px system-ui';b.onclick=action;buttons.appendChild(b);return b;};
+ const text=document.createElement('textarea');text.value=resultToShare;text.readOnly=true;text.setAttribute('aria-label','Written result and game link');text.style.cssText='width:100%;height:140px;margin-top:12px;background:#0b1524;color:#eef4ff;border:1px solid #52647c;border-radius:8px;padding:8px;box-sizing:border-box';
+ const file=blob&&typeof File==='function'?new File([blob],fileName,{type:'image/png'}):null;
+ let canShareImage=false;try{canShareImage=!!(file&&navigator.share&&navigator.canShare?.({files:[file]}));}catch(e){}
+ if(canShareImage)addButton('SHARE IMAGE',async()=>{try{await navigator.share({files:[file],text:resultToShare});status.textContent='Share request sent.';}catch(e){status.textContent=e.name==='AbortError'?'Sharing canceled.':'Sharing was blocked. Use SAVE IMAGE or copy the written result below.';}});
+ else if(navigator.share)addButton('SHARE RESULT + LINK',async()=>{try{await navigator.share({text:resultToShare});status.textContent='Share request sent.';}catch(e){status.textContent=e.name==='AbortError'?'Sharing canceled.':'Sharing was blocked. Copy the written result below.';}});
+ if(shareKind==='image'&&blob&&navigator.clipboard?.write&&typeof ClipboardItem==='function')addButton('COPY IMAGE',async()=>{try{await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);status.textContent='Image copied. Paste it into an app that accepts images.';}catch(e){status.textContent='Image copying is unavailable in this browser. Use SHARE IMAGE or SAVE IMAGE instead.';}});
+ if(blob){const url=URL.createObjectURL(blob);addButton('SAVE IMAGE',()=>{const a=document.createElement('a');a.href=url;a.download=fileName;panel.appendChild(a);a.click();a.remove();status.textContent='If no download starts, press and hold the image below to save it.';});const img=document.createElement('img');img.src=url;img.alt='Your result image. Press and hold to save.';img.style.cssText='display:block;width:100%;height:auto;margin-top:12px;border-radius:8px';panel.appendChild(img);overlay.addEventListener('share-panel-close',()=>URL.revokeObjectURL(url),{once:true});}
+ addButton('COPY RESULT + LINK',async()=>{try{if(!navigator.clipboard?.writeText)throw new Error('Clipboard unavailable');await navigator.clipboard.writeText(resultToShare);status.textContent='Written result and game link copied.';}catch(e){text.focus();text.select();text.setSelectionRange(0,text.value.length);let copied=false;try{copied=document.execCommand('copy');}catch(err){}status.textContent=copied?'Written result and game link copied.':'Press and hold the selected result below, then choose Copy.';}});
+ panel.appendChild(text);
+ if(/FBAN|FBAV|FB_IAB|Messenger/i.test(navigator.userAgent)){const hint=document.createElement('p');hint.textContent='Messenger may limit sharing and saved games. For reliable saving, use its menu to open this link in Chrome or your usual browser, then play there. Saved games stay in the browser where you played.';hint.style.fontSize='12px';panel.appendChild(hint);}
+ const close=()=>{overlay.dispatchEvent(new Event('share-panel-close'));overlay.remove();};addButton('CLOSE',close);overlay.appendChild(panel);document.body.appendChild(overlay);overlay.addEventListener('click',e=>{if(e.target===overlay)close();});
 }
   shareButton.onclick = async () => {
     shareStatus.textContent = '';
@@ -1371,7 +1376,7 @@ function openDesktopSharePanel(blob,fileName,resultToShare,shareKind){
     const daily=add('DAILY PUZZLE','daily',startDaily);add('RANDOM PUZZLE','random',startRandom);overlay.appendChild(card);document.body.appendChild(overlay);daily.focus();
   }
   const requestedGameMode = new URLSearchParams(location.search).get('mode');
-  requestedGameMode === 'random' ? startPracticeGame(true) : requestedGameMode === 'daily' ? newGame() : showGameModeChooser(newGame,()=>startPracticeGame(true));
+  requestedGameMode === 'random' ? startPracticeGame(true) : requestedGameMode === 'daily' ? newGame() : (()=>{let last=null;try{last=localStorage.getItem(progressStorageKey+".lastMode");}catch(e){}if(last==="random")startPracticeGame(true);else if(last==="daily")newGame();else showGameModeChooser(newGame,()=>startPracticeGame(true));})();
   const checkDate = () => {
     if (!practiceMode && dateKey() !== challengeDate) newGame();
   };
