@@ -309,7 +309,7 @@ body{height:100dvh;display:flex;align-items:center}
   <div class="main-layout">
     <div class="sheet">
       <div id="board"></div>
-      <div class="board-note version-rule"><b>How feedback works:</b> each round shows Shape, Color, and Combo in three rows beside the guess. The four marks in each row correspond, left to right, to the four guessed pieces. Dark = correct and in the correct spot. Light = correct, but in a different spot.</div>
+      <div class="board-note version-rule"><b>How feedback works:</b> each round shows Shape, Color, and Combo in three rows beside the guess. The four marks in each row correspond, left to right, to the four guessed pieces. Dark = correctly positioned. Light = present, but misplaced.</div>
     </div>
     <div class="side-panel">
       <section class="pool">
@@ -321,11 +321,11 @@ body{height:100dvh;display:flex;align-items:center}
       </section>
       <aside class="rules">
         <h2>FEEDBACK KEY</h2>
-    <div class="legend-row"><i class="legend-mark black"></i><span><b>DARK</b> — exact match and exact position.</span></div>
-     <div class="legend-row"><i class="legend-mark gray"></i><span><b>LIGHT</b> — match exists, but it is in another position.</span></div>
+    <div class="legend-row"><i class="legend-mark black"></i><span><b>DARK</b> — correctly positioned.</span></div>
+     <div class="legend-row"><i class="legend-mark gray"></i><span><b>LIGHT</b> — present, but misplaced.</span></div>
         <p><b>SHAPE:</b> compares only the shape.</p>
         <p><b>COLOR:</b> compares only the color.</p>
-        <p><b>COMBO:</b> compares the complete color + shape combination.</p>
+        <p><b>COMBO:</b> compares the combo (color + shape).</p>
         <p class="version-rule">You have <b>6 rounds</b> to crack the 4-piece code. The hidden code may repeat shapes, colors, both, or neither.</p>
       </aside>
     </div>
@@ -352,19 +352,19 @@ body{height:100dvh;display:flex;align-items:center}
     </div>
 
     <h3>Read the feedback</h3>
-    <p>Each guess receives separate feedback for <b>Shape</b>, <b>Color</b>, and the complete shape-and-color <b>Combo</b>. The four cells run left to right and correspond directly to the four guessed positions.</p>
+    <p>Each guess receives separate feedback for <b>Shape</b>, <b>Color</b>, and the <b>Combo</b> (color + shape). The four cells run left to right and correspond directly to the four guessed positions.</p>
     <div class="feedback-example" aria-label="Feedback example">
       <span class="example-label">SHAPE</span><i class="example-cell black"></i><i class="example-cell white"></i><i class="example-cell"></i><i class="example-cell"></i>
       <span class="example-label">COLOR</span><i class="example-cell black"></i><i class="example-cell"></i><i class="example-cell white"></i><i class="example-cell"></i>
       <span class="example-label">COMBO</span><i class="example-cell black"></i><i class="example-cell"></i><i class="example-cell"></i><i class="example-cell"></i>
     </div>
     <ul>
-      <li><b>Dark:</b> the feature is correct and in the correct position.</li>
-      <li><b>Light:</b> the feature is in the code but belongs in another position.</li>
-      <li><b>Blank gray:</b> no match for that position.</li>
+      <li><b>Dark:</b> correctly positioned.</li>
+      <li><b>Light:</b> present, but misplaced.</li>
+      <li><b>Blank gray:</b> no additional occurrence found.</li>
     </ul>
 
-    <h3>A three-round example</h3>
+    <p>A blank mark means <b>no additional occurrence found</b>. Each occurrence is counted once. For example, if two circles receive one dark mark and one blank, one circle is correctly positioned and a second circle is excluded. Use <b>excluded</b> for the specific possibility eliminated: a shape, a color, a combo, an additional occurrence, or a particular position.</p><h3>A three-round example</h3>
     <p>This puzzle was solved in only three rounds by following the position-by-position feedback.</p>
     <div class="strategy-example" aria-label="Three-round Basic strategy example">
       <section class="tutorial-round">
@@ -381,7 +381,7 @@ body{height:100dvh;display:flex;align-items:center}
           <span class="example-label">COMBO</span><i class="example-cell"></i><i class="example-cell"></i><i class="example-cell"></i><i class="example-cell"></i>
         </div>
       </section>
-      <div class="tutorial-logic"><b>What we learn:</b><br><b>Shape:</b> Circle is fixed in position 1, square belongs somewhere else, and diamond and star can be ruled out.<br><b>Color:</b> Purple is fixed in position 3, red is fixed in position 4, and blue and green can be ruled out.<br><b>Combo:</b> None of the four complete pieces is correct, so the fixed colors and shapes must be recombined.</div>
+      <div class="tutorial-logic"><b>What we learn:</b><br><b>Shape:</b> Circle is correctly positioned in position 1. Square is present, but misplaced. Diamond and star are excluded.<br><b>Color:</b> Purple is correctly positioned in position 3, and red is correctly positioned in position 4. Blue and green are excluded.<br><b>Combo:</b> All four guessed combos are excluded, so the correctly positioned colors and shapes must be recombined.</div>
 
       <section class="tutorial-round">
         <div class="tutorial-round-title">ROUND 2 <span>Keep the known positions and test what remains</span></div>
@@ -397,7 +397,7 @@ body{height:100dvh;display:flex;align-items:center}
           <span class="example-label">COMBO</span><i class="example-cell black"></i><i class="example-cell"></i><i class="example-cell black"></i><i class="example-cell white"></i>
         </div>
       </section>
-      <div class="tutorial-logic"><b>What we learn:</b><br><b>Combo:</b> Yellow circle and purple triangle are exactly right. Red triangle is also a correct combo but is misplaced; position 2 is its only open destination.<br><b>Shape:</b> Square belongs elsewhere, and after positions 1, 2, and 3 are fixed, it must move to position 4.<br><b>Color:</b> Red is fixed in position 4, while the second yellow receives no match. Therefore, the final piece must be a red square.</div>
+      <div class="tutorial-logic"><b>What we learn:</b><br><b>Combo:</b> Yellow circle and purple triangle are correctly positioned. Red triangle is present, but misplaced; position 2 is its only remaining position.<br><b>Shape:</b> Square is present, but misplaced. With the shapes in positions 1, 2, and 3 determined, square must go in position 4.<br><b>Color:</b> Red is correctly positioned in position 4. The second guessed yellow has no additional occurrence found, so a second yellow is excluded. Therefore, the final combo must be a red square.</div>
 
       <section class="tutorial-round solved">
         <div class="tutorial-round-title">ROUND 3 <span>Code cracked</span></div>
@@ -427,7 +427,7 @@ body{height:100dvh;display:flex;align-items:center}
 
     <h3>Planning placeholders</h3>
     <p>The gray shapes represent “this shape in any color.” The solid color boxes represent “this color in any shape.” They can be positioned like regular pieces while you reason through the puzzle, but they cannot be submitted.</p>
-<h3>Elimination notes</h3><p>Turn on <b>Notes Mode</b> to mark possibilities as ruled out. Tap a colored shape to eliminate only that combination, a gray shape to eliminate that shape in every color, or a solid color box to eliminate that color in every shape. Tap again to restore it. You may still drag a ruled-out item into your current guess; it will appear gray with a red slash as a reminder.</p>
+<h3>Elimination notes</h3><p>Turn on <b>Notes Mode</b> to mark possibilities as excluded. Tap a colored shape to exclude only that combo, a gray shape to exclude that shape in every color, or a solid color box to exclude that color in every shape. Tap again to restore it. You may still drag an excluded item into your current guess; it will appear gray with a red slash as a reminder.</p>
 
     <h3>Shared challenge and timing</h3>
     <p>The hidden code may repeat shapes, colors, both, or neither. A new shared challenge begins each day at midnight Central Time. Choose <b>Random Puzzle</b> for unlimited additional games. Pause or open these instructions whenever needed; time spent on either screen is excluded from your solve time.</p>
@@ -924,7 +924,7 @@ instructionsButton.onclick=openInstructions;
 pauseInstructionsButton.onclick=openInstructions;
 closeInstructionsButton.onclick=closeInstructions;
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!instructionsModal.hidden)closeInstructions();});
-notesButton.onclick=()=>{notesMode=!notesMode;updateNotesControls();renderPool();status.textContent=notesMode?'Notes Mode is on. Tap to mark items; drag to test a ruled-out item in your guess.':'Notes Mode is off. Palette items now build your guess.';};
+notesButton.onclick=()=>{notesMode=!notesMode;updateNotesControls();renderPool();status.textContent=notesMode?'Notes Mode is on. Tap to mark items; drag to test an excluded item in your guess.':'Notes Mode is off. Palette items now build your guess.';};
 clearNotesButton.onclick=()=>{ensureNotesForCurrentPuzzle();ruledOutShapes.clear();ruledOutColors.clear();ruledOutCombos.clear();saveNotes();renderPool();render();status.textContent='All elimination notes for this puzzle were cleared.';};
 renderPool();updateNotesControls();
 newGame();
