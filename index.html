@@ -201,6 +201,26 @@ body{height:100dvh;display:flex;align-items:center}
 .example-pieces{display:flex;gap:7px;align-items:center;margin:10px 0}
 .example-piece{width:34px;height:34px;background:#2787ff}
 .example-piece.circle{border-radius:50%}.example-piece.square{border-radius:10%}.example-piece.diamond{transform:rotate(45deg);width:25px;height:25px;margin:4px}.example-piece.triangle{clip-path:polygon(50% 0,100% 100%,0 100%);background:#ef4545}
+.example-piece.star{clip-path:polygon(50% 0,61% 35%,98% 35%,68% 56%,79% 93%,50% 71%,21% 93%,32% 56%,2% 35%,39% 35%)}
+.strategy-example{margin:12px 0 18px;display:grid;gap:12px}
+.tutorial-round{padding:12px;border:1px solid #405673;border-radius:12px;background:#0c1625;box-shadow:inset 0 0 18px #0003}
+.tutorial-round.solved{border-color:#38d878;box-shadow:inset 0 0 18px #143b2855,0 0 0 2px #38d87822}
+.tutorial-round-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;color:#eaf4ff;font-size:12px;font-weight:950;letter-spacing:.05em}
+.tutorial-round-title span{color:#88a0bd;font-size:10px}
+.tutorial-guess{display:grid;grid-template-columns:repeat(4,42px);gap:6px;margin:0 0 8px}
+.tutorial-piece{width:42px;height:42px;display:grid;place-items:center;border:1px solid #4c6280;border-radius:8px;background:#152238}
+.tutorial-piece .example-piece{width:27px;height:27px;margin:0}
+.tutorial-piece .example-piece.diamond{width:21px;height:21px}
+.tutorial-feedback{display:grid;grid-template-columns:54px repeat(4,23px);gap:3px;width:max-content;max-width:100%}
+.tutorial-feedback .example-label,.tutorial-feedback .example-cell{height:21px;font-size:7px}
+.tutorial-logic{position:relative;margin:0 4px;padding:9px 11px 9px 34px;border-left:3px solid #5ee7ff;background:#11253a;color:#c7d5e7;font-size:12px;line-height:1.45;border-radius:0 8px 8px 0}
+.tutorial-logic::before{content:'↓';position:absolute;left:11px;top:7px;color:#5ee7ff;font-size:18px;font-weight:950}
+.tutorial-logic b{color:#fff}
+.tutorial-finish{padding:14px 12px;text-align:center;border:1px solid #50647d;border-radius:14px;background:#111f32}
+.tutorial-finish h4{margin:0 0 5px;color:#f4f7ff;font-size:20px;letter-spacing:.04em;text-transform:uppercase}
+.tutorial-finish p{margin:0 0 10px;color:#aebbd0;font-size:12px}
+.tutorial-finish .tutorial-guess{justify-content:center;margin:0 auto}
+@media(max-width:430px){.strategy-example{gap:9px}.tutorial-round{padding:9px}.tutorial-guess{grid-template-columns:repeat(4,36px);gap:4px}.tutorial-piece{width:36px;height:36px}.tutorial-piece .example-piece{width:24px;height:24px}.tutorial-piece .example-piece.diamond{width:18px;height:18px}.tutorial-logic{font-size:11px}}
 
 @media(max-width:850px){
   body{display:block}
@@ -343,6 +363,67 @@ body{height:100dvh;display:flex;align-items:center}
       <li><b>Light:</b> the feature is in the code but belongs in another position.</li>
       <li><b>Blank gray:</b> no match for that position.</li>
     </ul>
+
+    <h3>A three-round example</h3>
+    <p>This puzzle was solved in only three rounds by following the position-by-position feedback.</p>
+    <div class="strategy-example" aria-label="Three-round Basic strategy example">
+      <section class="tutorial-round">
+        <div class="tutorial-round-title">ROUND 1 <span>Start with four different colors and shapes</span></div>
+        <div class="tutorial-guess" aria-label="Blue circle, green diamond, purple square, red star">
+          <i class="tutorial-piece"><i class="example-piece circle" style="background:#2787ff"></i></i>
+          <i class="tutorial-piece"><i class="example-piece diamond" style="background:#28b66f"></i></i>
+          <i class="tutorial-piece"><i class="example-piece square" style="background:#8d55d9"></i></i>
+          <i class="tutorial-piece"><i class="example-piece star" style="background:#ef4545"></i></i>
+        </div>
+        <div class="tutorial-feedback">
+          <span class="example-label">SHAPE</span><i class="example-cell black"></i><i class="example-cell"></i><i class="example-cell white"></i><i class="example-cell"></i>
+          <span class="example-label">COLOR</span><i class="example-cell"></i><i class="example-cell"></i><i class="example-cell black"></i><i class="example-cell black"></i>
+          <span class="example-label">COMBO</span><i class="example-cell"></i><i class="example-cell"></i><i class="example-cell"></i><i class="example-cell"></i>
+        </div>
+      </section>
+      <div class="tutorial-logic"><b>What we learn:</b><br><b>Shape:</b> Circle is fixed in position 1, square belongs somewhere else, and diamond and star can be ruled out.<br><b>Color:</b> Purple is fixed in position 3, red is fixed in position 4, and blue and green can be ruled out.<br><b>Combo:</b> None of the four complete pieces is correct, so the fixed colors and shapes must be recombined.</div>
+
+      <section class="tutorial-round">
+        <div class="tutorial-round-title">ROUND 2 <span>Keep the known positions and test what remains</span></div>
+        <div class="tutorial-guess" aria-label="Yellow circle, yellow square, purple triangle, red triangle">
+          <i class="tutorial-piece"><i class="example-piece circle" style="background:#f2c94c"></i></i>
+          <i class="tutorial-piece"><i class="example-piece square" style="background:#f2c94c"></i></i>
+          <i class="tutorial-piece"><i class="example-piece triangle" style="background:#8d55d9"></i></i>
+          <i class="tutorial-piece"><i class="example-piece triangle" style="background:#ef4545"></i></i>
+        </div>
+        <div class="tutorial-feedback">
+          <span class="example-label">SHAPE</span><i class="example-cell black"></i><i class="example-cell white"></i><i class="example-cell black"></i><i class="example-cell white"></i>
+          <span class="example-label">COLOR</span><i class="example-cell black"></i><i class="example-cell"></i><i class="example-cell black"></i><i class="example-cell black"></i>
+          <span class="example-label">COMBO</span><i class="example-cell black"></i><i class="example-cell"></i><i class="example-cell black"></i><i class="example-cell white"></i>
+        </div>
+      </section>
+      <div class="tutorial-logic"><b>What we learn:</b><br><b>Combo:</b> Yellow circle and purple triangle are exactly right. Red triangle is also a correct combo but is misplaced; position 2 is its only open destination.<br><b>Shape:</b> Square belongs elsewhere, and after positions 1, 2, and 3 are fixed, it must move to position 4.<br><b>Color:</b> Red is fixed in position 4, while the second yellow receives no match. Therefore, the final piece must be a red square.</div>
+
+      <section class="tutorial-round solved">
+        <div class="tutorial-round-title">ROUND 3 <span>Code cracked</span></div>
+        <div class="tutorial-guess" aria-label="Yellow circle, red triangle, purple triangle, red square">
+          <i class="tutorial-piece"><i class="example-piece circle" style="background:#f2c94c"></i></i>
+          <i class="tutorial-piece"><i class="example-piece triangle" style="background:#ef4545"></i></i>
+          <i class="tutorial-piece"><i class="example-piece triangle" style="background:#8d55d9"></i></i>
+          <i class="tutorial-piece"><i class="example-piece square" style="background:#ef4545"></i></i>
+        </div>
+        <div class="tutorial-feedback">
+          <span class="example-label">SHAPE</span><i class="example-cell black"></i><i class="example-cell black"></i><i class="example-cell black"></i><i class="example-cell black"></i>
+          <span class="example-label">COLOR</span><i class="example-cell black"></i><i class="example-cell black"></i><i class="example-cell black"></i><i class="example-cell black"></i>
+          <span class="example-label">COMBO</span><i class="example-cell black"></i><i class="example-cell black"></i><i class="example-cell black"></i><i class="example-cell black"></i>
+        </div>
+      </section>
+      <div class="tutorial-finish" aria-label="Finished result: code cracked in three rounds in one minute and twelve seconds">
+        <h4>Code cracked!</h4>
+        <p>Solved in 3 rounds · Time: 1 minute, 12 seconds</p>
+        <div class="tutorial-guess" aria-label="Solved code: yellow circle, red triangle, purple triangle, red square">
+          <i class="tutorial-piece"><i class="example-piece circle" style="background:#f2c94c"></i></i>
+          <i class="tutorial-piece"><i class="example-piece triangle" style="background:#ef4545"></i></i>
+          <i class="tutorial-piece"><i class="example-piece triangle" style="background:#8d55d9"></i></i>
+          <i class="tutorial-piece"><i class="example-piece square" style="background:#ef4545"></i></i>
+        </div>
+      </div>
+    </div>
 
     <h3>Planning placeholders</h3>
     <p>The gray shapes represent “this shape in any color.” The solid color boxes represent “this color in any shape.” They can be positioned like regular pieces while you reason through the puzzle, but they cannot be submitted.</p>
