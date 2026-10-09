@@ -472,31 +472,37 @@ body{height:100dvh;display:flex;align-items:center}
 </div>
 
 <script>
+// Gameplay settings. Layout and link formats still target the current four-position game.
+const CODE_LENGTH = 4;
+const MAX_GUESSES = 6;
+const DAILY_TIME_ZONE = 'America/Chicago';
+const UNDO_HISTORY_LIMIT = 50;
+
 const colors=[['blue','#2787ff'],['green','#28b66f'],['purple','#8d55d9'],['red','#ef4545'],['yellow','#f2c94c']];
 const shapes=['circle','diamond','square','star','triangle'];
 const pieces=[];
 colors.forEach(([color,hex])=>shapes.forEach(shape=>pieces.push({color,hex,shape})));
 const shapePlaceholders=shapes.map(shape=>({color:'any color',hex:'#4d535a',shape,placeholder:true,placeholderType:'shape'}));
 const colorPlaceholders=colors.map(([color,hex])=>({color,hex,shape:'color-placeholder',placeholder:true,placeholderType:'color'}));
-let secret=[], guesses=[], current=Array(4).fill(null), selectedSlot=null, dragFrom=null, dragPalettePiece=null, paletteLastDrag=0, lastDrop=0, startedAt=0, pausedAt=0, totalPausedMs=0, gameOver=false, undoStack=[], redoStack=[], clockStarted=false, highlightedPlaceholderSlot=null;
+let secret=[], guesses=[], current=Array(CODE_LENGTH).fill(null), selectedSlot=null, dragFrom=null, dragPalettePiece=null, paletteLastDrag=0, lastDrop=0, startedAt=0, pausedAt=0, totalPausedMs=0, gameOver=false, undoStack=[], redoStack=[], clockStarted=false, highlightedPlaceholderSlot=null;
 const board=document.getElementById('board'), tiles=document.getElementById('tiles'), status=document.getElementById('status');
 const notesButton=document.getElementById('notesBtn'),clearNotesButton=document.getElementById('clearNotesBtn');
 let notesMode=false,notesUsed=false,activeNotesKey='',ruledOutShapes=new Set(),ruledOutColors=new Set(),ruledOutCombos=new Set(),pendingEliminatedAlertSlot=null;
 const comboKey=p=>`${p.color}|${p.shape}`;
-function notesStorageKey(){const signature=secret.length===4?secret.map(p=>`${p.color}-${p.shape}`).join('_'):'pending';return `CoDeTeSt2.notes.basic.${signature}`;}
+function notesStorageKey(){const signature=secret.length===CODE_LENGTH?secret.map(p=>`${p.color}-${p.shape}`).join('_'):'pending';return `CoDeTeSt2.notes.basic.${signature}`;}
 function ensureNotesForCurrentPuzzle(){const key=notesStorageKey();if(key===activeNotesKey)return false;activeNotesKey=key;pendingNotesAccident=null;notesUndoCancellation=null;let saved=null;try{saved=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}ruledOutShapes=new Set(saved?.shapes||[]);ruledOutColors=new Set(saved?.colors||[]);ruledOutCombos=new Set(saved?.combos||[]);notesUsed=!!saved?.used;return true;}
 function saveNotes(){if(!activeNotesKey)ensureNotesForCurrentPuzzle();try{localStorage.setItem(activeNotesKey,JSON.stringify({shapes:[...ruledOutShapes],colors:[...ruledOutColors],combos:[...ruledOutCombos],used:notesUsed}));}catch(e){}}
 function isRuledOut(p){if(!p)return false;if(p.placeholderType==='shape')return ruledOutShapes.has(p.shape);if(p.placeholderType==='color')return ruledOutColors.has(p.color);return ruledOutShapes.has(p.shape)||ruledOutColors.has(p.color)||ruledOutCombos.has(comboKey(p));}
 let pendingNotesAccident=null,notesUndoCancellation=null;
 function noteUndoState(){return {kind:'notes',puzzleKey:activeNotesKey,shapes:[...ruledOutShapes],colors:[...ruledOutColors],combos:[...ruledOutCombos],used:notesUsed};}
 function restoreNoteUndoState(state){ruledOutShapes=new Set(state.shapes||[]);ruledOutColors=new Set(state.colors||[]);ruledOutCombos=new Set(state.combos||[]);saveNotes();renderPool();render();}
-function undoNoteChange(){const previous=undoStack[undoStack.length-1];if(previous?.kind!=='notes')return false;undoStack.pop();if(previous.puzzleKey!==activeNotesKey){pendingNotesAccident=null;notesUndoCancellation=null;render();return true;}redoStack.push(noteUndoState());if(redoStack.length>50)redoStack.shift();notesUndoCancellation=notesMode&&pendingNotesAccident===previous?{used:previous.used,puzzleKey:activeNotesKey}:null;pendingNotesAccident=null;restoreNoteUndoState(previous);status.textContent='Last change undone.';return true;}
-function redoNoteChange(){const next=redoStack[redoStack.length-1];if(next?.kind!=='notes')return false;redoStack.pop();pendingNotesAccident=null;notesUndoCancellation=null;if(next.puzzleKey!==activeNotesKey){render();return true;}undoStack.push(noteUndoState());if(undoStack.length>50)undoStack.shift();notesUsed=true;restoreNoteUndoState(next);status.textContent='Change restored.';return true;}
+function undoNoteChange(){const previous=undoStack[undoStack.length-1];if(previous?.kind!=='notes')return false;undoStack.pop();if(previous.puzzleKey!==activeNotesKey){pendingNotesAccident=null;notesUndoCancellation=null;render();return true;}redoStack.push(noteUndoState());if(redoStack.length>UNDO_HISTORY_LIMIT)redoStack.shift();notesUndoCancellation=notesMode&&pendingNotesAccident===previous?{used:previous.used,puzzleKey:activeNotesKey}:null;pendingNotesAccident=null;restoreNoteUndoState(previous);status.textContent='Last change undone.';return true;}
+function redoNoteChange(){const next=redoStack[redoStack.length-1];if(next?.kind!=='notes')return false;redoStack.pop();pendingNotesAccident=null;notesUndoCancellation=null;if(next.puzzleKey!==activeNotesKey){render();return true;}undoStack.push(noteUndoState());if(undoStack.length>UNDO_HISTORY_LIMIT)undoStack.shift();notesUsed=true;restoreNoteUndoState(next);status.textContent='Change restored.';return true;}
 function finishNotesMode(){if(notesMode&&notesUndoCancellation?.puzzleKey===activeNotesKey){notesUsed=notesUndoCancellation.used;saveNotes();}pendingNotesAccident=null;notesUndoCancellation=null;}
 document.addEventListener('click',event=>{const button=event.target.closest?.('button');if(button?.id==='undoBtn')return;if(button===notesButton&&notesMode&&notesUndoCancellation)return;pendingNotesAccident=null;notesUndoCancellation=null;},true);
-function toggleRuledOut(p){ensureNotesForCurrentPuzzle();const noteBefore=noteUndoState();undoStack.push(noteBefore);if(undoStack.length>50)undoStack.shift();redoStack=[];pendingNotesAccident=noteBefore;notesUndoCancellation=null;let set,key,label;if(p.placeholderType==='shape'){set=ruledOutShapes;key=p.shape;label=`${p.shape} in every color`;}else if(p.placeholderType==='color'){set=ruledOutColors;key=p.color;label=`${p.color} in every shape`;}else{set=ruledOutCombos;key=comboKey(p);label=`${p.color} ${p.shape}`;}const restoring=set.has(key);restoring?set.delete(key):set.add(key);notesUsed=true;saveNotes();renderPool();render();status.textContent=`${label} ${restoring?'restored':'marked as ruled out'}.`;}
+function toggleRuledOut(p){ensureNotesForCurrentPuzzle();const noteBefore=noteUndoState();undoStack.push(noteBefore);if(undoStack.length>UNDO_HISTORY_LIMIT)undoStack.shift();redoStack=[];pendingNotesAccident=noteBefore;notesUndoCancellation=null;let set,key,label;if(p.placeholderType==='shape'){set=ruledOutShapes;key=p.shape;label=`${p.shape} in every color`;}else if(p.placeholderType==='color'){set=ruledOutColors;key=p.color;label=`${p.color} in every shape`;}else{set=ruledOutCombos;key=comboKey(p);label=`${p.color} ${p.shape}`;}const restoring=set.has(key);restoring?set.delete(key):set.add(key);notesUsed=true;saveNotes();renderPool();render();status.textContent=`${label} ${restoring?'restored':'marked as ruled out'}.`;}
 function updateNotesControls(){notesButton.classList.toggle('active',notesMode);notesButton.setAttribute('aria-pressed',String(notesMode));notesButton.textContent=`NOTES MODE: ${notesMode?'ON':'OFF'}`;tiles.classList.toggle('notes-mode',notesMode);render();}
-function decorateRuledOutGuess(){for(let i=0;i<4;i++){const cell=document.querySelector(`[data-guess-index="${i}"]`);if(!cell||!current[i])continue;const eliminated=notesMode&&isRuledOut(current[i]);cell.classList.toggle('ruled-out-guess',eliminated);if(eliminated&&pendingEliminatedAlertSlot===i){cell.classList.add('eliminated-wiggle');setTimeout(()=>cell.classList.remove('eliminated-wiggle'),700);}}pendingEliminatedAlertSlot=null;}
+function decorateRuledOutGuess(){for(let i=0;i<CODE_LENGTH;i++){const cell=document.querySelector(`[data-guess-index="${i}"]`);if(!cell||!current[i])continue;const eliminated=notesMode&&isRuledOut(current[i]);cell.classList.toggle('ruled-out-guess',eliminated);if(eliminated&&pendingEliminatedAlertSlot===i){cell.classList.add('eliminated-wiggle');setTimeout(()=>cell.classList.remove('eliminated-wiggle'),700);}}pendingEliminatedAlertSlot=null;}
 
 const pauseButton=document.getElementById('pauseBtn'), pauseOverlay=document.getElementById('pauseOverlay'), resumeButton=document.getElementById('resumeBtn');
 const instructionsButton=document.getElementById('instructionsBtn'), instructionsModal=document.getElementById('instructionsModal'), closeInstructionsButton=document.getElementById('closeInstructionsBtn');
@@ -643,7 +649,7 @@ function select(p,i){
   document.querySelectorAll('.tile').forEach(x=>x.classList.remove('selected'));
   render();
   const count=current.filter(Boolean).length;
-  status.textContent=count<4
+  status.textContent=count<CODE_LENGTH
     ?`Placed in position ${target+1}. Selected ${count} of 4 pieces.`
     :current.some(x=>x?.placeholder)
       ?'Replace all planning placeholders with colored shapes before submitting.'
@@ -657,7 +663,7 @@ function selectGuessSlot(i){
 function clearGuess(){
   if(!current.some(Boolean))return;
   recordUndo();
-  current=Array(4).fill(null);
+  current=Array(CODE_LENGTH).fill(null);
   highlightedPlaceholderSlot=null;
   selectedSlot=null;
   render();
@@ -755,13 +761,13 @@ function wireGuessSlot(el,i,filled){
   el.onpointercancel=()=>{touchStart=null;el.classList.remove('dragging');};
 }
 function gradeDimension(guess,key){
-  const out=Array(4).fill(null),used=Array(4).fill(false);
-  for(let i=0;i<4;i++){
+  const out=Array(CODE_LENGTH).fill(null),used=Array(CODE_LENGTH).fill(false);
+  for(let i=0;i<CODE_LENGTH;i++){
     if(guess[i][key]===secret[i][key]){out[i]='black';used[i]=true;}
   }
-  for(let i=0;i<4;i++){
+  for(let i=0;i<CODE_LENGTH;i++){
     if(!out[i]){
-      for(let j=0;j<4;j++){
+      for(let j=0;j<CODE_LENGTH;j++){
         if(!used[j]&&guess[i][key]===secret[j][key]){
           out[i]='gray';used[j]=true;break;
         }
@@ -771,14 +777,14 @@ function gradeDimension(guess,key){
   return out;
 }
 function gradeCombo(guess){
-  const out=Array(4).fill(null),used=Array(4).fill(false);
+  const out=Array(CODE_LENGTH).fill(null),used=Array(CODE_LENGTH).fill(false);
   const same=(a,b)=>a.color===b.color&&a.shape===b.shape;
-  for(let i=0;i<4;i++){
+  for(let i=0;i<CODE_LENGTH;i++){
     if(same(guess[i],secret[i])){out[i]='black';used[i]=true;}
   }
-  for(let i=0;i<4;i++){
+  for(let i=0;i<CODE_LENGTH;i++){
     if(!out[i]){
-      for(let j=0;j<4;j++){
+      for(let j=0;j<CODE_LENGTH;j++){
         if(!used[j]&&same(guess[i],secret[j])){
           out[i]='gray';used[j]=true;break;
         }
@@ -805,14 +811,14 @@ function submit(){
   }
   const g=[...current],fb=score(g);
   guesses.push({g,fb});
-  current=Array(4).fill(null);
+  current=Array(CODE_LENGTH).fill(null);
   highlightedPlaceholderSlot=null;
   selectedSlot=null;
   undoStack=[];
   redoStack=[];
   render();
   if(fb.combo.every(x=>x==='black'))return endGame(true);
-  if(guesses.length===6)return endGame(false);
+  if(guesses.length===MAX_GUESSES)return endGame(false);
   status.textContent='Guess recorded. Use the three feedback rows to make your next deduction.';
 }
 function mark(statusValue){
@@ -832,7 +838,7 @@ function roundBlock(r){
   wrap.appendChild(label);
   const data=guesses[r];
   const guess=data?data.g:(r===guesses.length?current:[]);
-  for(let i=0;i<4;i++){
+  for(let i=0;i<CODE_LENGTH;i++){
     const c=document.createElement('div');
     const active=r===guesses.length&&!data,editable=active&&!!guess[i];
     c.className='guess-piece '+(active?'current ':'')+(editable?'editable ':'')+(active&&selectedSlot===i?'slot-selected ':'');
@@ -855,7 +861,7 @@ function roundBlock(r){
     head.className='feedback-cell label-row';
     head.textContent=key.toUpperCase();
     row.appendChild(head);
-    for(let i=0;i<4;i++)row.appendChild(mark(data?data.fb[key][i]:null));
+    for(let i=0;i<CODE_LENGTH;i++)row.appendChild(mark(data?data.fb[key][i]:null));
     panel.appendChild(row);
   });
   wrap.appendChild(panel);
@@ -863,7 +869,7 @@ function roundBlock(r){
 }
 function render(){
   board.innerHTML='';
-  for(let r=0;r<6;r++)board.appendChild(roundBlock(r));
+  for(let r=0;r<MAX_GUESSES;r++)board.appendChild(roundBlock(r));
   document.getElementById('submitBtn').disabled=current.some(x=>!x||x.placeholder);
   const hasEntries=current.some(Boolean),allValid=current.every(x=>x&&!x.placeholder);
   const validationPopover=document.getElementById('validationPopover');
@@ -878,7 +884,7 @@ function render(){
 function recordUndo(){
  pendingNotesAccident=null;notesUndoCancellation=null;
   undoStack.push({current:[...current],selectedSlot});
-  if(undoStack.length>50)undoStack.shift();
+  if(undoStack.length>UNDO_HISTORY_LIMIT)undoStack.shift();
   redoStack=[];
 }
 function undoGuess(){
@@ -886,7 +892,7 @@ function undoGuess(){
   const previous=undoStack.pop();
   if(!previous)return;
   redoStack.push({current:[...current],selectedSlot});
-  if(redoStack.length>50)redoStack.shift();
+  if(redoStack.length>UNDO_HISTORY_LIMIT)redoStack.shift();
   current=[...previous.current];
   highlightedPlaceholderSlot=null;
   selectedSlot=previous.selectedSlot;
@@ -898,7 +904,7 @@ function redoGuess(){
   const next=redoStack.pop();
   if(!next)return;
   undoStack.push({current:[...current],selectedSlot});
-  if(undoStack.length>50)undoStack.shift();
+  if(undoStack.length>UNDO_HISTORY_LIMIT)undoStack.shift();
   current=[...next.current];
   highlightedPlaceholderSlot=null;
   selectedSlot=next.selectedSlot;
@@ -910,7 +916,7 @@ function newGame(){
   resetPause();
   secret=Array.from({length:4},()=>pieces[Math.floor(Math.random()*pieces.length)]);
   guesses=[];
-  current=Array(4).fill(null);
+  current=Array(CODE_LENGTH).fill(null);
   selectedSlot=null;
   undoStack=[];
   redoStack=[];
@@ -969,7 +975,7 @@ newGame();
   heading.innerHTML = dailyHeading;
 
   const formatter = new Intl.DateTimeFormat('en-US', {
-    timeZone:'America/Chicago',
+    timeZone:DAILY_TIME_ZONE,
     year:'numeric',
     month:'2-digit',
     day:'2-digit'
@@ -1019,14 +1025,14 @@ newGame();
     catch (e) { restoringRandom ? clearRandomProgress() : clearDailyProgress(); }
     if(!restoringRandom && saved?.practiceMode){try{localStorage.setItem(randomProgressStorageKey,JSON.stringify(saved));localStorage.removeItem(progressStorageKey);}catch(e){}return false;}
     if(restoringRandom && !saved){try{const legacy=JSON.parse(localStorage.getItem(progressStorageKey)||'null');if(legacy?.practiceMode){saved=legacy;localStorage.setItem(randomProgressStorageKey,JSON.stringify(legacy));localStorage.removeItem(progressStorageKey);}}catch(e){}}
-    if (!saved || ![1,2].includes(saved.version) || !Array.isArray(saved.secret) || saved.secret.length !== 4) return false;
+    if (!saved || ![1,2].includes(saved.version) || !Array.isArray(saved.secret) || saved.secret.length !== CODE_LENGTH) return false;
     if (restoringRandom !== !!saved.practiceMode) return false;
     if (!restoringRandom && saved.challengeDate !== dateKey()) { clearDailyProgress(); return false; }
     practiceMode = !!saved.practiceMode;
     challengeDate = saved.challengeDate || dateKey();
     secret = saved.secret;
     guesses = Array.isArray(saved.guesses) ? saved.guesses : [];
-    current = Array.isArray(saved.current) && saved.current.length === 4 ? saved.current : Array(4).fill(null);
+    current = Array.isArray(saved.current) && saved.current.length === CODE_LENGTH ? saved.current : Array(CODE_LENGTH).fill(null);
     selectedSlot = Number.isInteger(saved.selectedSlot) ? saved.selectedSlot : null;
     undoStack = Array.isArray(saved.undoStack) ? saved.undoStack : [];
     redoStack = Array.isArray(saved.redoStack) ? saved.redoStack : [];
@@ -1094,7 +1100,7 @@ newGame();
 
     let n = indexFor(day,390625,mode === 'entry' ? 17011 : 33147);
     const result = [];
-    for (let i=0;i<4;i++) {
+    for (let i=0;i<CODE_LENGTH;i++) {
       result.push(pieces[n % 25]);
       n = Math.floor(n / 25);
     }
@@ -1167,7 +1173,7 @@ newGame();
     resetPause();
     secret = solutionFor(challengeDate);
     guesses = [];
-    current = Array(4).fill(null);
+    current = Array(CODE_LENGTH).fill(null);
     highlightedPlaceholderSlot = null;
     selectedSlot = null;
     undoStack = [];
@@ -1206,7 +1212,7 @@ newGame();
     resetPause();
     secret = Array.from({length:4},()=>pieces[Math.floor(Math.random()*pieces.length)]);
     guesses = [];
-    current = Array(4).fill(null);
+    current = Array(CODE_LENGTH).fill(null);
     highlightedPlaceholderSlot = null;
     selectedSlot = null;
     undoStack = [];
@@ -1234,7 +1240,7 @@ newGame();
       returnDailyButton.hidden = true;
       againButton.textContent = 'PLAY ANOTHER RANDOM';
       prepareResultImage(createPracticeSolutionImage,'Preparing the completed-puzzle image…');
-      try{localStorage.setItem(randomProgressStorageKey,JSON.stringify({version:2,completed:true,win,challengeDate:challengeDate||dateKey(),practiceMode:true,secret,guesses,current:Array(4).fill(null),selectedSlot:null,undoStack:[],redoStack:[],clockStarted:true,elapsedMs:elapsedMilliseconds()}));}catch(e){}
+      try{localStorage.setItem(randomProgressStorageKey,JSON.stringify({version:2,completed:true,win,challengeDate:challengeDate||dateKey(),practiceMode:true,secret,guesses,current:Array(CODE_LENGTH).fill(null),selectedSlot:null,undoStack:[],redoStack:[],clockStarted:true,elapsedMs:elapsedMilliseconds()}));}catch(e){}
     } else {
       clearDailyProgress();
       preparedPracticeResultBlob = null;
@@ -1258,7 +1264,7 @@ newGame();
     heading.innerHTML = dailyHeading;
     secret = [...dailySnapshot.secret];
     guesses = dailySnapshot.guesses.map(row=>({g:[...row.g],fb:row.fb}));
-    current = Array(4).fill(null);
+    current = Array(CODE_LENGTH).fill(null);
     selectedSlot = null;
     undoStack = [];
     redoStack = [];
