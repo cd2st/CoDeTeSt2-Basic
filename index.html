@@ -478,6 +478,23 @@ const MAX_GUESSES = 6;
 const DAILY_TIME_ZONE = 'America/Chicago';
 const UNDO_HISTORY_LIMIT = 50;
 
+let completionTimestamp=null,restoredCompletionTimestamp;
+function completionLine(){
+ if(!completionTimestamp)return '';
+ const date=new Date(completionTimestamp);
+ if(!Number.isFinite(date.getTime()))return '';
+ const day=new Intl.DateTimeFormat('en-US',{timeZone:DAILY_TIME_ZONE,month:'2-digit',day:'2-digit',year:'2-digit'}).format(date);
+ const time=new Intl.DateTimeFormat('en-US',{timeZone:DAILY_TIME_ZONE,hour:'numeric',minute:'2-digit',hour12:true}).format(date);
+ return `Solved: ${day} at ${time} CT`;
+}
+function showCompletionLine(line){
+ let el=document.getElementById('completionTime');
+ if(!el){el=document.createElement('div');el.id='completionTime';el.className='small';document.getElementById('elapsedTime').insertAdjacentElement('afterend',el);}
+ el.textContent=line;el.hidden=!line;
+}
+function savedCompletionLine(text){return String(text||'').split(/\r?\n/).find(line=>line.startsWith('Solved: '))||'';}
+
+
 const colors=[['blue','#2787ff'],['green','#28b66f'],['purple','#8d55d9'],['red','#ef4545'],['yellow','#f2c94c']];
 const shapes=['circle','diamond','square','star','triangle'];
 const pieces=[];
@@ -925,12 +942,13 @@ function newGame(){
   status.textContent='Click a guess box, then choose a piece from the pool.';
 }
 function endGame(win){
+ completionTimestamp=win?(restoredCompletionTimestamp===undefined?new Date().toISOString():restoredCompletionTimestamp):null;restoredCompletionTimestamp=undefined;
   const modal=document.getElementById('modal'),code=document.getElementById('code');
   code.innerHTML='';
   secret.forEach(p=>code.appendChild(makeShape(p)));
   gameOver=true;
   pauseButton.disabled=true;
-  document.getElementById('elapsedTime').textContent='Time: '+formatElapsed(elapsedMilliseconds());
+  document.getElementById('elapsedTime').textContent='Time: '+formatElapsed(elapsedMilliseconds());showCompletionLine(completionLine());
   document.getElementById('result').textContent=win?'CODE CRACKED!':'OUT OF GUESSES';
   document.getElementById('resultText').textContent=win
     ?`You solved it in ${guesses.length} round${guesses.length===1?'':'s'}.`
@@ -1048,7 +1066,7 @@ newGame();
     pauseButton.disabled = false;
     if(restoringRandom && saved.completed){
       clockStarted=true;pausedAt=0;startedAt=Date.now()-Math.max(0,Number(saved.elapsedMs)||0);totalPausedMs=0;
-      render();endGame(!!saved.win);status.textContent='Completed random puzzle restored.';return true;
+      render();restoredCompletionTimestamp=saved.completionTimestamp||null;endGame(!!saved.win);status.textContent='Completed random puzzle restored.';return true;
     }
     let immediateResume = false;
     try {
@@ -1235,12 +1253,12 @@ newGame();
     if (practiceMode) {
       shareText = `CodeTest2 — ${label} Random\n${displayDate(challengeDate || dateKey())}\n`
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
-        + `Time: ${elapsed}${notesUsed?'\nNotes Mode Used':''}`;
+        + `Time: ${elapsed}${completionLine()?'\n'+completionLine():''}${notesUsed?'\nNotes Mode Used':''}`;
       shareButton.hidden = false;
       returnDailyButton.hidden = true;
       againButton.textContent = 'PLAY ANOTHER RANDOM';
       prepareResultImage(createPracticeSolutionImage,'Preparing the completed-puzzle image…');
-      try{localStorage.setItem(randomProgressStorageKey,JSON.stringify({version:2,completed:true,win,challengeDate:challengeDate||dateKey(),practiceMode:true,secret,guesses,current:Array(CODE_LENGTH).fill(null),selectedSlot:null,undoStack:[],redoStack:[],clockStarted:true,elapsedMs:elapsedMilliseconds()}));}catch(e){}
+      try{localStorage.setItem(randomProgressStorageKey,JSON.stringify({version:2,completed:true,win,completionTimestamp,challengeDate:challengeDate||dateKey(),practiceMode:true,secret,guesses,current:Array(CODE_LENGTH).fill(null),selectedSlot:null,undoStack:[],redoStack:[],clockStarted:true,elapsedMs:elapsedMilliseconds()}));}catch(e){}
     } else {
       clearDailyProgress();
       preparedPracticeResultBlob = null;
@@ -1248,7 +1266,7 @@ newGame();
       shareButton.disabled = false;
       shareText = `CodeTest2 — ${label} Daily\n${displayDate(challengeDate)}\n`
         + `${win ? `Solved in ${guesses.length}/6 guesses` : 'Not solved in 6 guesses'}\n`
-        + `Time: ${elapsed}${notesUsed?'\nNotes Mode Used':''}`;
+        + `Time: ${elapsed}${completionLine()?'\n'+completionLine():''}${notesUsed?'\nNotes Mode Used':''}`;
       dailySnapshot = {win,elapsed,resultText:shareText,secret:[...secret],guesses:guesses.map(row=>({g:[...row.g],fb:row.fb}))};
       saveDailySnapshot(challengeDate,dailySnapshot);
       shareButton.hidden = false;
@@ -1270,7 +1288,7 @@ newGame();
     redoStack = [];
     render();
     originalEndGame(dailySnapshot.win);
-    document.getElementById('elapsedTime').textContent = 'Time: ' + dailySnapshot.elapsed;
+    document.getElementById('elapsedTime').textContent = 'Time: ' + dailySnapshot.elapsed;showCompletionLine(savedCompletionLine(dailySnapshot.resultText));
     shareText = dailySnapshot.resultText.replace(/\nNotes Mode: Not used/g,'').replace(/Notes Mode: Used/g,'Notes Mode Used');
     shareButton.hidden = false;
     returnDailyButton.hidden = true;
@@ -1300,19 +1318,19 @@ newGame();
     shareText.split('\n').forEach((line,index)=>{const displayed=index===0?line.replace(/^CodeTest2\s+—\s+/,''):line;ctx.font=index===0?'800 31px system-ui':'650 25px system-ui';ctx.fillText(displayed,width/2,startY+index*36);});
   };
   const createDailyResultImage = async () => {
-    const logoImage=await loadShareLogo(),width=900,height=480,canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
+    const logoImage=await loadShareLogo(),width=900,height=520,canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
     if(!logoImage)throw new Error('CodeTest2 logo unavailable');
     ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.strokeStyle='#30445f';ctx.lineWidth=4;ctx.strokeRect(18,18,width-36,height-36);
     {const logoWidth=480,logoHeight=Math.min(130,logoWidth*(logoImage.naturalHeight/logoImage.naturalWidth));ctx.drawImage(logoImage,(width-logoWidth)/2,28,logoWidth,logoHeight);}
-    drawWrittenResult(ctx,width,190);ctx.fillStyle='#a9bad0';ctx.font='700 22px system-ui';ctx.fillText('DAILY RESULT • SOLUTION NOT SHOWN',width/2,400);ctx.font='600 18px system-ui';ctx.fillText('cd2st.github.io/CoDeTeSt2/',width/2,height-30);
+    drawWrittenResult(ctx,width,190);ctx.fillStyle='#a9bad0';ctx.font='700 22px system-ui';ctx.fillText('DAILY RESULT • SOLUTION NOT SHOWN',width/2,440);ctx.font='600 18px system-ui';ctx.fillText('cd2st.github.io/CoDeTeSt2/',width/2,height-30);
     return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Could not create daily result image.')),'image/png'));
   };
   const createPracticeSolutionImage = async () => {
-    const logoImage=await loadShareLogo(),width=1200,rowHeight=155,headerHeight=350,solutionHeight=190,height=headerHeight+guesses.length*rowHeight+solutionHeight,canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
+    const logoImage=await loadShareLogo(),width=1200,rowHeight=155,headerHeight=390,solutionHeight=190,height=headerHeight+guesses.length*rowHeight+solutionHeight,canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
     if(!logoImage)throw new Error('CodeTest2 logo unavailable');
     ctx.fillStyle='#08111f';ctx.fillRect(0,0,width,height);ctx.strokeStyle='#30445f';ctx.lineWidth=3;ctx.strokeRect(18,18,width-36,height-36);
     {const logoWidth=500,logoHeight=Math.min(125,logoWidth*(logoImage.naturalHeight/logoImage.naturalWidth));ctx.drawImage(logoImage,(width-logoWidth)/2,24,logoWidth,logoHeight);}
-    drawWrittenResult(ctx,width,165);ctx.fillStyle='#9fb1c8';ctx.font='700 22px system-ui';ctx.fillText('GUESS',330,335);ctx.fillText('POSITION-BY-POSITION FEEDBACK',900,335);
+    drawWrittenResult(ctx,width,165);ctx.fillStyle='#9fb1c8';ctx.font='700 22px system-ui';ctx.fillText('GUESS',330,375);ctx.fillText('POSITION-BY-POSITION FEEDBACK',900,375);
     const feedbackColors={black:'#17191f',gray:'#e7d3a7',empty:'#65758a'},feedbackLabels=['SHAPE','COLOR','COMBO'];
     guesses.forEach((round,index)=>{const top=headerHeight+index*rowHeight;ctx.fillStyle=index%2?'#0d1828':'#111e31';ctx.fillRect(38,top-5,width-76,rowHeight-10);ctx.fillStyle='#7f96b4';ctx.font='800 25px system-ui';ctx.textAlign='center';ctx.fillText(String(index+1),65,top+80);round.g.forEach((piece,pieceIndex)=>{const cx=140+pieceIndex*130,cy=top+72;ctx.fillStyle='#16243a';ctx.fillRect(cx-50,cy-50,100,100);ctx.strokeStyle='#405574';ctx.strokeRect(cx-50,cy-50,100,100);drawPracticeShareShape(ctx,piece,cx,cy,78);});['shape','color','combo'].forEach((dimension,dimensionIndex)=>{const y=top+14+dimensionIndex*42;ctx.fillStyle='#c6d5e8';ctx.font='800 19px system-ui';ctx.textAlign='right';ctx.fillText(feedbackLabels[dimensionIndex],760,y+25);round.fb[dimension].forEach((mark,markIndex)=>{const x=780+markIndex*88;ctx.fillStyle=feedbackColors[mark||'empty'];ctx.fillRect(x,y,70,30);ctx.strokeStyle=mark==='gray'?'#fff1cf':mark==='black'?'#7d6a50':'#26364e';ctx.strokeRect(x,y,70,30);});});});
     const answerTop=headerHeight+guesses.length*rowHeight+20;ctx.fillStyle='#c6d5e8';ctx.font='800 25px system-ui';ctx.textAlign='left';ctx.fillText('SOLUTION',55,answerTop+58);secret.forEach((piece,index)=>{const cx=300+index*150,cy=answerTop+48;ctx.fillStyle='#16243a';ctx.fillRect(cx-52,cy-52,104,104);ctx.strokeStyle='#5e789c';ctx.strokeRect(cx-52,cy-52,104,104);drawPracticeShareShape(ctx,piece,cx,cy,80);});ctx.fillStyle='#9fb1c8';ctx.font='600 18px system-ui';ctx.textAlign='center';ctx.fillText('cd2st.github.io/CoDeTeSt2/',width/2,height-30);
