@@ -589,6 +589,7 @@ function showCompletionLine(line){
  el.textContent=line;el.hidden=!line;
 }
 function resultUsedNotes(text){return /(?:^|\r?\n)Notes Mode(?::)? Used(?:\r?\n|$)/.test(String(text||''));}
+function showResultPuzzleName(){const variation={'CoDeTeSt2.stats.basic.v2':'Basic','CoDeTeSt2.stats.no-repeats.v2':'No Repeats Challenge','CoDeTeSt2.stats.may-repeat.v2':'May Repeat Challenge','CoDeTeSt2.stats.friend.v2':'Friend Challenge'}[BROWSER_STATS_KEY],kind=browserStatsKind();let label=document.getElementById('resultPuzzleName');if(!label){label=document.createElement('p');label.id='resultPuzzleName';label.style.cssText='margin:8px 0 12px;color:#9feeff;font-size:16px;font-weight:700';document.getElementById('result').insertAdjacentElement('afterend',label);}label.textContent=variation+(kind==='daily'?' - Daily':kind==='random'?' - Random':'');}
 function showNotesModeResult(used){let el=document.getElementById('resultNotesMode');if(!el){el=document.createElement('div');el.id='resultNotesMode';el.className='small';(document.getElementById('completionTime')||document.getElementById('elapsedTime')).insertAdjacentElement('afterend',el);}el.textContent=used?'Notes Mode Used':'';el.hidden=!used;}
 function savedCompletionLine(text){return String(text||'').split(/\r?\n/).find(line=>line.startsWith('Solved: '))||'';}
 
@@ -1047,7 +1048,7 @@ function endGame(win){
   gameOver=true;
   pauseButton.disabled=true;
   document.getElementById('elapsedTime').textContent='Time: '+formatElapsed(elapsedMilliseconds());showCompletionLine(completionLine());showNotesModeResult(notesUsed);
-  document.getElementById('result').textContent=win?'CODE CRACKED!':'OUT OF GUESSES';
+  document.getElementById('result').textContent=win?'CODE CRACKED!':'OUT OF GUESSES';showResultPuzzleName();
   document.getElementById('resultText').textContent=win
     ?`You solved it in ${guesses.length} round${guesses.length===1?'':'s'}.`
     :'The hidden code was:';
